@@ -1,6 +1,9 @@
+import os
 import math
 import inspect
 import miditoolkit
+
+import data_utils
 
 
 class MidiProcessor(object):
@@ -71,6 +74,21 @@ class MidiProcessor(object):
         self.dur_enc, self.dur_dec = self.generate_duration_vocab(self.max_duration, self.pos_resolution)
 
         self.vocab = self.generate_vocab()
+
+    def vocab_to_str_list(self):
+        return ['%s-%d' % (item[0], item[1]) for item in self.vocab]
+
+    def dump_vocab(self, file_path, fairseq_dict=False):
+        vocab_str_list = self.vocab_to_str_list()
+        dir_name = os.path.dirname(file_path)
+        os.makedirs(dir_name, exist_ok=True)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            for word in vocab_str_list:
+                if fairseq_dict:
+                    line = '%s 1\n' % word
+                else:
+                    line = '%s\n' % word
+                f.write(line)
 
     @property
     def max_ts_denominator(self):
@@ -183,21 +201,45 @@ class MidiProcessor(object):
 
         return midi_obj
 
-    def encode_file(self, file_path, max_encoding_length=None, max_bar=None, cut_method='successive'):
+    def encode_file(self, file_path, max_encoding_length=None, max_bar=None, cut_method='successive', tracks=None,
+                    save_path=None):
         midi_obj = self.load_midi(file_path)
         if self.encoding_method == 'REMI':
             encodings = self.midi_to_remi_encoding(midi_obj,
                                                    max_encoding_length=max_encoding_length,
                                                    max_bar=max_bar,
-                                                   cut_method=cut_method)
+                                                   cut_method=cut_method,
+                                                   tracks=tracks,)
         else:
             raise ValueError("Encoding method %s is not currently supported." % cut_method)
+
+        if save_path is not None:
+            try:
+                self.dump_encodings(encodings, save_path)
+            except IOError:
+                print("Wrong! Saving failed: \nMIDI: %s\nSave Path: %s" % file_path, save_path)
+
         return encodings
 
     def time_to_pos(self, t, ticks_per_beat):
         return round(t * self.pos_resolution / ticks_per_beat)
 
-    def collect_pos_info(self, midi_obj):
+    def pos_to_time(self, pos, ticks_per_beat, pos_resolution=None):
+        if pos_resolution is None:
+            pos_resolution = self.pos_resolution
+        return pos * ticks_per_beat // self.pos_resolution
+
+    def collect_pos_info(self, midi_obj, tracks=None):
+        if tracks is not None:
+            from collections.abc import Iterable
+            assert isinstance(tracks, (int, Iterable))
+            if isinstance(tracks, str):
+                tracks = int(tracks)
+            if isinstance(tracks, int):
+                if tracks < 0:
+                    tracks = len(midi_obj.instruments) + tracks
+                tracks = (tracks,)
+
         max_pos = 0
         for inst in midi_obj.instruments:
             for note in inst.notes:
@@ -231,7 +273,9 @@ class MidiProcessor(object):
             pos_to_info[pos][3] = self.convert_tempo_to_id(tempo)
 
         insts = midi_obj.instruments
-        for inst in insts:
+        for inst_idx, inst in enumerate(insts):
+            if tracks is not None and inst_idx not in tracks:
+                continue
             inst_id = 128 if inst.is_drum else inst.program
             notes = inst.notes
             for note in notes:
@@ -289,8 +333,9 @@ class MidiProcessor(object):
 
     def midi_to_remi_encoding(self, midi_obj,
                               max_encoding_length=None, max_bar=None,
-                              cut_method='successive'):
-        pos_to_info = self.collect_pos_info(midi_obj)
+                              cut_method='successive',
+                              tracks=None):
+        pos_to_info = self.collect_pos_info(midi_obj, tracks=tracks)
 
         encoding = []
 
@@ -352,7 +397,7 @@ class MidiProcessor(object):
         authorize_right = lambda x, y: x[y][0] == MidiProcessor.BAR_ABBR
 
         def authorize_bar(encoding, start, pos, offset, max_bar):
-            if encoding[pos][0] == MidiProcessor.BAR_ABBR:
+            if pos < len(encoding) and encoding[pos][0] == MidiProcessor.BAR_ABBR:
                 return encoding[pos][1] - offset <= max_bar
             pos -= 1
             while pos >= start:
@@ -405,9 +450,13 @@ class MidiProcessor(object):
             end = min(start + max_length, len_encoding)
             first_bar_idx, bar_offset = get_offset(encoding[start: end])
             assert first_bar_idx == 0
+            have_bar = False
             while True:
-                assert end > start, "No authorized right position for the cut."
-                if authorize_right(encoding, end) or end == len_encoding:
+                assert end > start, "No authorized right position for the cut. " + \
+                                    ("However, there is a bar in the range." if have_bar
+                                     else "And there is no bar in the range.")
+                if end == len_encoding or authorize_right(encoding, end):
+                    have_bar = True
                     if max_bar is None:
                         break
                     else:
@@ -446,3 +495,129 @@ class MidiProcessor(object):
             str_lists.append(str_list)
 
         return str_lists
+
+    def dump_encodings(self, encodings, file_path):
+        encodings_str_lists = self.remi_encodings_to_str_lists(encodings)
+        data_utils.dump_lists(encodings_str_lists, file_path)
+
+    def remi_encoding_to_midi_obj(self, encoding,
+                                  ticks_per_beat=480,
+                                  pos_resolution=None,
+                                  beat_note_factor=None,
+                                  ):
+        if pos_resolution is None:
+            pos_resolution = self.pos_resolution
+        if beat_note_factor is None:
+            beat_note_factor = self.beat_note_factor
+
+        cur_bar_id = None
+        cur_ts_id = None
+        cur_local_pos = None
+        cur_ts_pos_per_bar = beat_note_factor * pos_resolution
+        cur_tempo_id = None
+        cur_global_bar_pos = None
+        cur_global_pos = None
+
+        cur_inst = None
+        cur_pitch = None
+        cur_duration = None
+        cur_velocity = None
+
+        max_tick = 0
+
+        midi_obj = miditoolkit.midi.parser.MidiFile(ticks_per_beat=ticks_per_beat)
+        midi_obj.instruments = [
+            miditoolkit.containers.Instrument(program=(0 if i == 128 else i), is_drum=(i == 128), name=str(i))
+            for i in range(128 + 1)
+        ]
+
+        for item in encoding:
+            try:
+                item_type, item_value = item
+            except ValueError:
+                print(item)
+                raise
+            if item_type == MidiProcessor.BAR_ABBR:
+                if cur_bar_id != item_value:
+                    cur_bar_id = item_value
+                    cur_local_pos = None
+                    if cur_global_bar_pos is None:
+                        cur_global_bar_pos = 0
+                    else:
+                        cur_global_bar_pos += cur_ts_pos_per_bar
+                    cur_global_pos = cur_global_bar_pos
+            elif item_type == MidiProcessor.TS_ABBR:
+                if cur_ts_id != item_value:
+                    cur_ts_id = item_value
+                    cur_ts_numerator, cur_ts_denominator = self.convert_id_to_ts(cur_ts_id)
+                    midi_obj.time_signature_changes.append(
+                        miditoolkit.containers.TimeSignature(numerator=cur_ts_numerator,
+                                                             denominator=cur_ts_denominator,
+                                                             time=self.pos_to_time(cur_global_pos,
+                                                                                   ticks_per_beat=ticks_per_beat))
+                    )
+                    cur_ts_pos_per_bar = cur_ts_numerator * beat_note_factor * pos_resolution // cur_ts_denominator
+            elif item_type == MidiProcessor.POS_ABBR:
+                if cur_local_pos != item_value:
+                    cur_local_pos = item_value
+                    cur_global_pos = cur_global_bar_pos + cur_local_pos
+            elif item_type == MidiProcessor.TEMPO_ABBR:
+                if cur_tempo_id != item_value:
+                    cur_tempo_id = item_value
+                    cur_tempo = self.convert_id_to_tempo(cur_tempo_id)
+                    midi_obj.tempo_changes.append(
+                        miditoolkit.containers.TempoChange(tempo=cur_tempo,
+                                                           time=self.pos_to_time(cur_global_pos,
+                                                                                 ticks_per_beat=ticks_per_beat))
+                    )
+            elif item_type == MidiProcessor.INST_ABBR:
+                cur_inst = midi_obj.instruments[item_value]
+            elif item_type == MidiProcessor.PITCH_ABBR:
+                cur_pitch = self.convert_id_to_pitch(item_value)
+            elif item_type == MidiProcessor.DURATION_ABBR:
+                cur_duration = self.convert_id_to_dur(item_value)
+            elif item_type == MidiProcessor.VELOCITY_ABBR:
+                cur_velocity = self.convert_id_to_vel(item_value)
+
+                start_pos = cur_global_pos
+                end_pos = start_pos + cur_duration
+                start_time = self.pos_to_time(start_pos, ticks_per_beat, pos_resolution=pos_resolution)
+                end_time = self.pos_to_time(end_pos, ticks_per_beat, pos_resolution=pos_resolution)
+                max_tick = max(end_time, max_tick)
+                cur_inst.notes.append(
+                    miditoolkit.containers.Note(start=start_time, end=end_time, pitch=cur_pitch, velocity=cur_velocity)
+                )
+            else:
+                raise ValueError("Unknown encoding type: %d" % item_type)
+
+        midi_obj.max_tick = max_tick
+
+        midi_obj.instruments = [i for i in midi_obj.instruments if len(i.notes) > 0]
+
+        return midi_obj
+
+    def load_encoding_str(self, file_name):
+        with open(file_name, 'r', encoding='utf-8') as f:
+            line = f.readlines(1)
+        line = line[0]
+        line = line.strip()
+        line = line.split(' ')
+        encodings = []
+        for item in line:
+            try:
+                t, value = item.split('-')
+            except:
+                print(item)
+                raise
+            encodings.append((t, int(value)))
+        return encodings
+
+    @staticmethod
+    def convert_remi_token_str_to_token(token_str):
+        try:
+            t, value = token_str.split('-')
+            value = int(value)
+        except ValueError:
+            print(token_str)
+            raise
+        return t, value

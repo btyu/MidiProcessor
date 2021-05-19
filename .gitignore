@@ -131,4 +131,12 @@ dmypy.json
 .idea/
 .vscode/
 
-test-*
+test*
+
+files/
+
+*.sh
+
+*.mid
+
+*.ipynb
