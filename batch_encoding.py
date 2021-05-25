@@ -15,6 +15,7 @@ def main():
     # ToDo: processor的构造函数args分离
     parser = argparse.ArgumentParser()
     parser.add_argument('midi_dir', type=str, default='midi')
+    parser.add_argument('--encoding_method', choices=['REMI', 'TS1'])
     parser.add_argument('--file_list', type=str, default=None)
     parser.add_argument('--only_mid', action='store_true')
     parser.add_argument('--output_one_file', action='store_true')
@@ -28,6 +29,7 @@ def main():
     parser.add_argument('--max_encoding_length', type=int, default=None)
     parser.add_argument('--max_bar', type=int, default=None)
     parser.add_argument('--cut_method', type=str, default='successive')
+    parser.add_argument('--remove_bar_idx', action='store_true')
     parser.add_argument('--track_dict', type=str, default=None)
 
     args = parser.parse_args()
@@ -44,7 +46,7 @@ def main():
     else:
         track_dict = None
 
-    pcs = MidiProcessor()
+    pcs = MidiProcessor(encoding_method=args.encoding_method)
 
     multi_encodings = []
 
@@ -55,8 +57,10 @@ def main():
                                         max_encoding_length=args.max_encoding_length,
                                         max_bar=args.max_bar,
                                         cut_method=args.cut_method,
+                                        max_bar_num=None,  # Todo
+                                        remove_bar_idx=args.remove_bar_idx,
                                         tracks=None if track_dict is None else track_dict[basename])
-            encodings = pcs.remi_encodings_to_str_lists(encodings)
+            encodings = pcs.convert_token_lists_to_token_str_lists(encodings)
             if args.output_one_file:
                 multi_encodings.append(encodings)
             else:

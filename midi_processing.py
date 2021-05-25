@@ -4,11 +4,15 @@ import inspect
 import miditoolkit
 
 import data_utils
+import remi_utils
+import ts1_utils
 
 
 class MidiProcessor(object):
     # === ENCODING ===
-    ENCODINGS = ('REMI',)
+    ENCODINGS = ('REMI', 'TS1')
+    # REMI: REMI
+    # TS1: 只编码Bar(no idx)、position、duration、pitch信息
 
     # === Abbreviation ===
     BAR_ABBR = 'b'
@@ -24,7 +28,7 @@ class MidiProcessor(object):
     CUT_METHODS = ('successive', 'first')
 
     def __init__(self,
-                 encoding_method='REMI',
+                 encoding_method,
                  pos_resolution=16,
                  trunc_pos=None,
                  max_ts_denominator_power=6,
@@ -37,8 +41,7 @@ class MidiProcessor(object):
                  max_bar_num=256,
                  ):
         # ===== Check =====
-        assert encoding_method in MidiProcessor.ENCODINGS, "Encoding method %s not in the supported: %s" % \
-                                                           (encoding_method, ', '.join(MidiProcessor.ENCODINGS))
+        MidiProcessor.check_encoding_method(encoding_method)
 
         # ===== Authorized =====
         self.encoding_method = encoding_method
@@ -75,6 +78,32 @@ class MidiProcessor(object):
 
         self.vocab = self.generate_vocab()
 
+    # ===== Encoding Method =====
+    # Finished
+    @staticmethod
+    def check_encoding_method(encoding_method):
+        assert encoding_method in MidiProcessor.ENCODINGS, "Encoding method %s not in the supported: %s" % \
+                                                           (encoding_method, ', '.join(MidiProcessor.ENCODINGS))
+
+    # Finished
+    def get_encoding_method(self, encoding_method=None):
+        """
+        供各方法调用的获取encoding_method的方法
+        :param encoding_method:
+        :return:
+        """
+        if encoding_method is None:
+            encoding_method = self.encoding_method
+        else:
+            MidiProcessor.check_encoding_method(encoding_method)
+        return encoding_method
+
+    # Finished
+    @staticmethod
+    def __raise_encoding_method_error(encoding_method):
+        raise ValueError("Encoding method %s is not supported." % encoding_method)
+
+    # ===== Vocab =====
     def vocab_to_str_list(self):
         return ['%s-%d' % (item[0], item[1]) for item in self.vocab]
 
@@ -182,9 +211,14 @@ class MidiProcessor(object):
     def convert_id_to_dur(self, x):
         return self.dur_dec[x] if x < len(self.dur_dec) else self.dur_dec[-1]
 
+    # Finished
     @staticmethod
-    # Open and check MIDI file, return MIDI object by miditoolkit.
     def load_midi(file_path):
+        """
+        Open and check MIDI file, return MIDI object by miditoolkit.
+        :param file_path:
+        :return:
+        """
         midi_obj = miditoolkit.midi.parser.MidiFile(file_path)
 
         # check abnormal values in parse result
@@ -201,25 +235,53 @@ class MidiProcessor(object):
 
         return midi_obj
 
-    def encode_file(self, file_path, max_encoding_length=None, max_bar=None, cut_method='successive', tracks=None,
+    def encode_file(self, file_path,
+                    encoding_method=None,
+                    max_encoding_length=None,
+                    max_bar=None,
+                    cut_method='successive',
+                    max_bar_num=None,
+                    remove_bar_idx=False,
+                    tracks=None,
                     save_path=None):
-        midi_obj = self.load_midi(file_path)
-        if self.encoding_method == 'REMI':
-            encodings = self.midi_to_remi_encoding(midi_obj,
-                                                   max_encoding_length=max_encoding_length,
-                                                   max_bar=max_bar,
-                                                   cut_method=cut_method,
-                                                   tracks=tracks,)
+        encoding_method = self.get_encoding_method(encoding_method)
+
+        midi_obj = MidiProcessor.load_midi(file_path)
+
+        pos_info = self.collect_pos_info(midi_obj, tracks=tracks)
+
+        if max_bar_num is None:
+            max_bar_num = self.max_bar_num
+
+        token_lists = None
+        if encoding_method == 'REMI':  # Todo: REMI encoding结构修改
+            token_lists = self.pos_info_to_remi_encoding(pos_info,
+                                                         max_encoding_length=max_encoding_length,
+                                                         max_bar=max_bar,
+                                                         cut_method=cut_method, )
+        elif encoding_method == 'TS1':
+            token_lists = ts1_utils.convert_pos_info_to_ts1_token_lists(
+                pos_info,
+                MidiProcessor.BAR_ABBR,
+                MidiProcessor.POS_ABBR,
+                MidiProcessor.PITCH_ABBR,
+                MidiProcessor.DURATION_ABBR,
+                max_encoding_length=max_encoding_length,
+                max_bar=max_bar,
+                cut_method=cut_method,
+                max_bar_num=max_bar_num,
+                remove_bar_idx=remove_bar_idx,
+            )
         else:
-            raise ValueError("Encoding method %s is not currently supported." % cut_method)
+            MidiProcessor.__raise_encoding_method_error(encoding_method)
 
         if save_path is not None:
             try:
-                self.dump_encodings(encodings, save_path)
+                self.dump_token_lists(token_lists, save_path, encoding_method=encoding_method)
             except IOError:
                 print("Wrong! Saving failed: \nMIDI: %s\nSave Path: %s" % file_path, save_path)
 
-        return encodings
+        return token_lists
 
     def time_to_pos(self, t, ticks_per_beat):
         return round(t * self.pos_resolution / ticks_per_beat)
@@ -331,12 +393,9 @@ class MidiProcessor(object):
                     break
         return numerator, denominator
 
-    def midi_to_remi_encoding(self, midi_obj,
-                              max_encoding_length=None, max_bar=None,
-                              cut_method='successive',
-                              tracks=None):
-        pos_to_info = self.collect_pos_info(midi_obj, tracks=tracks)
-
+    def pos_info_to_remi_encoding(self, pos_to_info,
+                                  max_encoding_length=None, max_bar=None,
+                                  cut_method='successive', ):
         encoding = []
 
         max_pos = len(pos_to_info)
@@ -481,25 +540,6 @@ class MidiProcessor(object):
                 new_encoding.append(item)
         return new_encoding
 
-    def encodings_to_str_lists(self, encodings):
-        if self.encoding_method == 'REMI':
-            return self.remi_encodings_to_str_lists(encodings)
-        else:
-            raise ValueError
-
-    def remi_encodings_to_str_lists(self, encodings):
-        str_lists = []
-
-        for encoding in encodings:
-            str_list = ['%s-%d' % (item[0], item[1]) for item in encoding]
-            str_lists.append(str_list)
-
-        return str_lists
-
-    def dump_encodings(self, encodings, file_path):
-        encodings_str_lists = self.remi_encodings_to_str_lists(encodings)
-        data_utils.dump_lists(encodings_str_lists, file_path)
-
     def remi_encoding_to_midi_obj(self, encoding,
                                   ticks_per_beat=480,
                                   pos_resolution=None,
@@ -612,12 +652,63 @@ class MidiProcessor(object):
             encodings.append((t, int(value)))
         return encodings
 
-    @staticmethod
-    def convert_remi_token_str_to_token(token_str):
-        try:
-            t, value = token_str.split('-')
-            value = int(value)
-        except ValueError:
-            print(token_str)
-            raise
-        return t, value
+    # Finished
+    # encoding_method check
+    def convert_token_lists_to_token_str_lists(self, token_lists, encoding_method=None):
+        """
+        将一个文件的encoding token_lists（二层列表）转换为str lists
+        :param token_lists:
+        :param encoding_method:
+        :return:
+        """
+        encoding_method = self.get_encoding_method(encoding_method)
+        if encoding_method == 'REMI':
+            return remi_utils.convert_remi_token_lists_to_token_str_lists(token_lists)
+        elif encoding_method == 'TS1':
+            return ts1_utils.convert_ts1_token_lists_to_token_str_lists(token_lists)
+        else:
+            MidiProcessor.__raise_encoding_method_error(encoding_method)
+
+    # Finished
+    def dump_token_lists(self, token_lists, file_path, encoding_method=None):
+        """
+        将一个文件的encoding token_lists转换成str并存为文件
+        :param token_lists:
+        :param file_path:
+        :param encoding_method:
+        :return:
+        """
+        encoding_method = self.get_encoding_method(encoding_method)
+        token_str_lists = self.convert_token_lists_to_token_str_lists(token_lists, encoding_method=encoding_method)
+        data_utils.dump_lists(token_str_lists, file_path)
+
+    # Finished
+    def convert_token_str_to_token(self, token_str, encoding_method=None):
+        """
+        将单个token的str转换为encoding元组
+        :param token_str: 单个token的str
+        :param encoding_method: encoding方法
+        :return:
+        """
+        encoding_method = self.get_encoding_method(encoding_method)
+        # 调用各encoding方式对应方法
+        if encoding_method == 'REMI':
+            return remi_utils.convert_remi_token_str_to_token(token_str)
+        else:
+            MidiProcessor.__raise_encoding_method_error(encoding_method)
+
+    # Todo
+    def convert_token_str_list_to_token_list(self, token_str_list, encoding_method=None):
+        """
+
+        :param token_str_list:
+        :param encoding_method:
+        :return:
+        """
+        encoding_method = self.get_encoding_method(encoding_method)
+        if encoding_method == 'REMI':
+            pass
+
+    # Todo
+    def load_encoding_lists_from_str_lists(self, file_name, keep_full_dim=False, ):
+        pass
