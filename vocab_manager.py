@@ -88,7 +88,7 @@ class VocabManager:
 
         return vocab
 
-    def _time_signature_reduce(self, numerator, denominator):
+    def reduce_time_signature(self, numerator, denominator):
         while denominator > self.max_ts_denominator and denominator % 2 == 0 and numerator % 2 == 0:
             denominator //= 2
             numerator //= 2

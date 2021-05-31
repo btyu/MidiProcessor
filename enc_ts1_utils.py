@@ -31,23 +31,21 @@ def convert_ts1_token_str_list_to_token_list(token_str_list):
 
 def convert_pos_info_to_ts1_token_lists(pos_to_info,
 
-                                        bar_abbr,
-                                        pos_abbr,
-                                        pitch_abbr,
-                                        duration_abbr,
-
                                         max_encoding_length=None,
                                         max_bar=None,
+
                                         cut_method='successive',
+
                                         max_bar_num=None,
                                         remove_bar_idx=False,
                                         ):
-    # bar, pos, pitch, duration
+    # bar, ts, pos, pitch, duration
 
     encoding = []
 
     max_pos = len(pos_to_info)
     cur_bar = None
+    cur_ts = None
     for pos in range(max_pos):
         now_bar, now_ts, now_local_pos, now_tempo, now_insts_notes = pos_to_info[pos]
 
@@ -55,20 +53,23 @@ def convert_pos_info_to_ts1_token_lists(pos_to_info,
 
         if cur_bar != now_bar:
             cur_bar = now_bar
-            encoding.append((bar_abbr, cur_bar))  # bar
+            encoding.append((const.BAR_ABBR, cur_bar))  # bar
+
+        if cur_ts != now_ts:
+            cur_ts = now_ts
+            encoding.append((const.TS_ABBR, cur_ts))  # ts
 
         if now_insts_notes is not None:
             cur_insts_notes = now_insts_notes
-            encoding.append((pos_abbr, cur_local_pos))  # local pos
+            encoding.append((const.POS_ABBR, cur_local_pos))  # local pos
             insts_ids = sorted(list(cur_insts_notes.keys()))
             for inst_id in insts_ids:
                 inst_notes = sorted(cur_insts_notes[inst_id])
                 for pitch, duration, velocity, pos_end in inst_notes:
-                    encoding.append((pitch_abbr, pitch))  # pitch
-                    encoding.append((duration_abbr, duration))  # duration
+                    encoding.append((const.PITCH_ABBR, pitch))  # pitch
+                    encoding.append((const.DURATION_ABBR, duration))  # duration
 
     token_lists = cut_ts1_full_token_list(encoding,
-                                          bar_abbr,
                                           max_encoding_length=max_encoding_length,
                                           max_bar=max_bar,
                                           cut_method=cut_method,
@@ -80,7 +81,6 @@ def convert_pos_info_to_ts1_token_lists(pos_to_info,
 
 
 def cut_ts1_full_token_list(encoding,
-                            bar_abbr,
                             max_encoding_length=None,
                             max_bar=None,
                             cut_method='successive',
@@ -102,19 +102,19 @@ def cut_ts1_full_token_list(encoding,
 
     def get_bar_offset(token_list):  # 获取第一个bar的下标
         for idx, item in enumerate(token_list):
-            if item[0] == bar_abbr:
+            if item[0] == const.BAR_ABBR:
                 return idx, item[1]
         return None, None
 
     def authorize_right(token_list, idx):  # 右边
-        return token_list[idx][0] == bar_abbr
+        return token_list[idx][0] == const.BAR_ABBR
 
     def authorize_bar(encoding, start, pos, offset, max_bar):
-        if pos < len(encoding) and encoding[pos][0] == bar_abbr:
+        if pos < len(encoding) and encoding[pos][0] == const.BAR_ABBR:
             return encoding[pos][1] - offset <= max_bar
         pos -= 1
         while pos >= start:
-            if encoding[pos][0] == bar_abbr:
+            if encoding[pos][0] == const.BAR_ABBR:
                 return encoding[pos][1] - offset < max_bar
             pos -= 1
         raise ValueError("No authorized bar in the encoding range.")
@@ -122,7 +122,7 @@ def cut_ts1_full_token_list(encoding,
     if cut_method == 'successive':
         return cut_utils.encoding_successive_cut(
             encoding,
-            bar_abbr,
+            const.BAR_ABBR,
             max_length=max_encoding_length,
             max_bar=max_bar,
             get_bar_offset=get_bar_offset,
@@ -135,7 +135,7 @@ def cut_ts1_full_token_list(encoding,
     elif cut_method == 'first':
         return cut_utils.encoding_successive_cut(
             encoding,
-            bar_abbr,
+            const.BAR_ABBR,
             max_length=max_encoding_length,
             max_bar=max_bar,
             get_bar_offset=get_bar_offset,
@@ -171,7 +171,7 @@ def generate_midi_obj_from_ts1_token_list(token_list,
                                           tempo=const.DEFAULT_TEMPO,
                                           inst_id=const.DEFAULT_INST_ID,
                                           velocity=const.DEFAULT_VELOCITY,
-                                          ):
+                                          ): # Todo: 增加TS
     # Bar, Pos, Pitch, Duration
 
     beat_note_factor = vocab_manager.beat_note_factor
