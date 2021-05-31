@@ -1,25 +1,32 @@
 # Author: Botao Yu
 
-import basic_encoding_utils
+import miditoolkit
+
+import const
+import enc_basic_utils
 import cut_utils
 
 TS1_CUT_METHOD = ('successive', 'cut')
 
 
 def convert_ts1_token_to_token_str(token):
-    return basic_encoding_utils.convert_basic_token_to_token_str(token)
+    return enc_basic_utils.convert_basic_token_to_token_str(token)
 
 
 def convert_ts1_token_list_to_token_str_list(token_list):
-    return basic_encoding_utils.convert_basic_token_list_to_token_str_list(token_list)
+    return enc_basic_utils.convert_basic_token_list_to_token_str_list(token_list)
 
 
 def convert_ts1_token_lists_to_token_str_lists(token_lists):
-    return basic_encoding_utils.convert_basic_token_lists_to_token_str_lists(token_lists)
+    return enc_basic_utils.convert_basic_token_lists_to_token_str_lists(token_lists)
 
 
 def convert_ts1_token_str_to_token(token_str):
-    return basic_encoding_utils.convert_basic_token_str_to_token(token_str)
+    return enc_basic_utils.convert_basic_token_str_to_token(token_str)
+
+
+def convert_ts1_token_str_list_to_token_list(token_str_list):
+    return enc_basic_utils.convert_basic_token_str_list_to_token_list(token_str_list)
 
 
 def convert_pos_info_to_ts1_token_lists(pos_to_info,
@@ -80,7 +87,6 @@ def cut_ts1_full_token_list(encoding,
                             max_bar_num=None,
                             remove_bar_idx=False,
                             ):
-
     len_encoding = len(encoding)
 
     direct_returns = (
@@ -146,3 +152,94 @@ def cut_ts1_full_token_list(encoding,
 def ts1_check_cut_method(cut_method):
     assert cut_method in TS1_CUT_METHOD, "Cut method \"%s\" not in the supported: %s" % \
                                          (cut_method, ', '.join(TS1_CUT_METHOD))
+
+
+def fix_ts1_token_list(token_list):
+    token_list = token_list[:]
+    bar_idx = 0
+    for idx, token in enumerate(token_list):
+        if token[0] == const.BAR_ABBR:
+            token_list[idx] = (const.BAR_ABBR, bar_idx)
+            bar_idx += 1
+    return token_list
+
+
+def generate_midi_obj_from_ts1_token_list(token_list,
+                                          vocab_manager,
+                                          ticks_per_beat=const.DEFAULT_TICKS_PER_BEAT,
+                                          ts=const.DEFAULT_TS,
+                                          tempo=const.DEFAULT_TEMPO,
+                                          inst_id=const.DEFAULT_INST_ID,
+                                          velocity=const.DEFAULT_VELOCITY,
+                                          ):
+    # Bar, Pos, Pitch, Duration
+
+    beat_note_factor = vocab_manager.beat_note_factor
+    pos_resolution = vocab_manager.pos_resolution
+
+    cur_bar_id = None
+    cur_local_pos = None
+    cur_ts_pos_per_bar = beat_note_factor * pos_resolution * ts[0] // ts[1]
+    cur_global_bar_pos = None
+    cur_global_pos = None
+
+    cur_pitch = None
+    cur_duration = None
+    cur_velocity = velocity
+
+    max_tick = 0
+
+    midi_obj = miditoolkit.midi.parser.MidiFile(ticks_per_beat=ticks_per_beat)
+    midi_obj.instruments = [
+        miditoolkit.containers.Instrument(program=(0 if i == 128 else i), is_drum=(i == 128), name=str(i))
+        for i in range(128 + 1)
+    ]
+    cur_inst = midi_obj.instruments[inst_id]
+
+    midi_obj.time_signature_changes.append(
+        miditoolkit.containers.TimeSignature(numerator=ts[0], denominator=ts[1], time=0)
+    )
+
+    midi_obj.tempo_changes.append(
+        miditoolkit.containers.TempoChange(tempo=tempo, time=0)
+    )
+
+    for item in token_list:
+        try:
+            item_type, item_value = item
+        except ValueError:
+            print(item)
+            raise
+        if item_type == const.BAR_ABBR:
+            if cur_bar_id != item_value:
+                cur_bar_id = item_value
+                cur_local_pos = None
+                if cur_global_bar_pos is None:
+                    cur_global_bar_pos = 0
+                else:
+                    cur_global_bar_pos += cur_ts_pos_per_bar
+                cur_global_pos = cur_global_bar_pos
+        elif item_type == const.POS_ABBR:
+            if cur_local_pos != item_value:
+                cur_local_pos = item_value
+                cur_global_pos = cur_global_bar_pos + cur_local_pos
+        elif item_type == const.PITCH_ABBR:
+            cur_pitch = vocab_manager.convert_id_to_pitch(item_value)
+        elif item_type == const.DURATION_ABBR:
+            cur_duration = vocab_manager.convert_id_to_dur(item_value)
+            start_pos = cur_global_pos
+            end_pos = start_pos + cur_duration
+            start_time = vocab_manager.pos_to_time(start_pos, ticks_per_beat, pos_resolution=pos_resolution)
+            end_time = vocab_manager.pos_to_time(end_pos, ticks_per_beat, pos_resolution=pos_resolution)
+            max_tick = max(end_time, max_tick)
+            cur_inst.notes.append(
+                miditoolkit.containers.Note(start=start_time, end=end_time, pitch=cur_pitch, velocity=cur_velocity)
+            )
+        else:
+            raise ValueError("Unknown encoding type: %d" % item_type)
+
+    midi_obj.max_tick = max_tick
+
+    midi_obj.instruments = [i for i in midi_obj.instruments if len(i.notes) > 0]
+
+    return midi_obj

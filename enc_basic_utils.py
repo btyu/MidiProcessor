@@ -23,6 +23,10 @@ def convert_basic_token_str_to_token(token_str):
         t, value = token_str.split('-')
         value = int(value)
     except ValueError:
-        print(token_str)
+        print("Cannot convert the token_str to a valid_token:",  token_str)
         raise
     return t, value
+
+
+def convert_basic_token_str_list_to_token_list(token_str_list):
+    return [convert_basic_token_to_token_str(item) for item in token_str_list]

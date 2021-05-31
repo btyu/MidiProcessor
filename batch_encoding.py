@@ -22,6 +22,7 @@ def main():
     parser.add_argument('--output_dir', type=str, default='tokenization')
     parser.add_argument('--output_base_name', type=str, default=None)
     parser.add_argument('--output_suffix', type=str, default='.token')
+    parser.add_argument('--no_internal_blanks', action='store_true')
     parser.add_argument('--dump_dict', action='store_true')
     parser.add_argument('--fairseq_dict', action='store_true')
     parser.add_argument('--dump_log', action='store_true')
@@ -30,6 +31,7 @@ def main():
     parser.add_argument('--max_bar', type=int, default=None)
     parser.add_argument('--cut_method', type=str, default='successive')
     parser.add_argument('--remove_bar_idx', action='store_true')
+    parser.add_argument('--normalize_keys', action='store_true')
     parser.add_argument('--track_dict', type=str, default=None)
 
     args = parser.parse_args()
@@ -53,19 +55,24 @@ def main():
     with tqdm(total=num_files) as pbar:
         for file_path in file_path_list:
             basename = os.path.basename(file_path)
-            encodings = pcs.encode_file(file_path,
-                                        max_encoding_length=args.max_encoding_length,
-                                        max_bar=args.max_bar,
-                                        cut_method=args.cut_method,
-                                        max_bar_num=None,  # Todo
-                                        remove_bar_idx=args.remove_bar_idx,
-                                        tracks=None if track_dict is None else track_dict[basename])
+            try:
+                encodings = pcs.encode_file(file_path,
+                                            max_encoding_length=args.max_encoding_length,
+                                            max_bar=args.max_bar,
+                                            cut_method=args.cut_method,
+                                            max_bar_num=None,  # Todo
+                                            remove_bar_idx=args.remove_bar_idx,
+                                            normalize_keys=args.normalize_keys,
+                                            tracks=None if track_dict is None else track_dict[basename])
+            except:
+                print('Error when encoding %s.' % file_path)
+                raise
             encodings = pcs.convert_token_lists_to_token_str_lists(encodings)
             if args.output_one_file:
                 multi_encodings.append(encodings)
             else:
                 output_path = os.path.join(args.output_dir, basename + args.output_suffix)
-                data_utils.dump_lists(encodings, output_path)
+                data_utils.dump_lists(encodings, output_path, no_internal_blanks=args.no_internal_blanks)
 
             pbar.update(1)
 
@@ -78,7 +85,7 @@ def main():
         else:
             output_base_name = args.output_base_name
         output_path = os.path.join(args.output_dir, output_base_name + args.output_suffix)
-        data_utils.dump_lists(multi_encodings, output_path)
+        data_utils.dump_lists(multi_encodings, output_path, no_internal_blanks=args.no_internal_blanks)
 
     if args.dump_dict:
         pcs.dump_vocab(os.path.join(args.output_dir, 'dict.txt'), fairseq_dict=args.fairseq_dict)

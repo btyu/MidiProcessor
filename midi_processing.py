@@ -1,11 +1,13 @@
 import os
 import math
 import inspect
+import pickle
 import miditoolkit
 
 import data_utils
-import remi_utils
-import ts1_utils
+import enc_remi_utils
+import enc_ts1_utils
+import keys_normalization
 
 
 class MidiProcessor(object):
@@ -39,6 +41,7 @@ class MidiProcessor(object):
                  velocity_quant=4,
                  max_duration=8,
                  max_bar_num=256,
+                 key_profile_file='key_profile.pickle',
                  ):
         # ===== Check =====
         MidiProcessor.check_encoding_method(encoding_method)
@@ -64,6 +67,10 @@ class MidiProcessor(object):
 
         self.max_bar_num = max_bar_num
 
+        self.key_profile = None
+        if key_profile_file is not None:
+            self.load_key_profile(key_profile_file)
+
         # ===== Unauthorized =====
         # self.deduplicate = True
         # self.filter_symbolic = False
@@ -77,6 +84,11 @@ class MidiProcessor(object):
         self.dur_enc, self.dur_dec = self.generate_duration_vocab(self.max_duration, self.pos_resolution)
 
         self.vocab = self.generate_vocab()
+
+    # ==== Key Profile =====
+    def load_key_profile(self, key_profile_file):
+        with open(key_profile_file, 'rb') as f:
+            self.key_profile = pickle.load(f)
 
     # ===== Encoding Method =====
     # Finished
@@ -242,6 +254,7 @@ class MidiProcessor(object):
                     cut_method='successive',
                     max_bar_num=None,
                     remove_bar_idx=False,
+                    normalize_keys=False,
                     tracks=None,
                     save_path=None):
         encoding_method = self.get_encoding_method(encoding_method)
@@ -249,6 +262,9 @@ class MidiProcessor(object):
         midi_obj = MidiProcessor.load_midi(file_path)
 
         pos_info = self.collect_pos_info(midi_obj, tracks=tracks)
+
+        if normalize_keys:
+            pos_info = self.normalize_pitch(pos_info)
 
         if max_bar_num is None:
             max_bar_num = self.max_bar_num
@@ -260,7 +276,7 @@ class MidiProcessor(object):
                                                          max_bar=max_bar,
                                                          cut_method=cut_method, )
         elif encoding_method == 'TS1':
-            token_lists = ts1_utils.convert_pos_info_to_ts1_token_lists(
+            token_lists = enc_ts1_utils.convert_pos_info_to_ts1_token_lists(
                 pos_info,
                 MidiProcessor.BAR_ABBR,
                 MidiProcessor.POS_ABBR,
@@ -379,6 +395,20 @@ class MidiProcessor(object):
                 bar += 1
 
         return pos_to_info
+
+    def normalize_pitch(self, pos_info):
+        assert self.key_profile is not None, "Please load key_profile first, using load_key_profile method."
+        pitch_shift = keys_normalization.get_pitch_shift(pos_info, self.key_profile)
+        for bar, ts, pos, tempo, insts_notes in pos_info:
+            if insts_notes is None:
+                continue
+            for inst_id in insts_notes:
+                if inst_id == 128:
+                    continue
+                inst_notes = insts_notes[inst_id]
+                for note_idx, (pitch, duration, velocity, pos_end) in enumerate(inst_notes):
+                    inst_notes[note_idx] = (pitch + pitch_shift, duration, velocity, pos_end)
+        return pos_info
 
     def _time_signature_reduce(self, numerator, denominator):
         # reduction (when denominator is too large)
@@ -663,9 +693,9 @@ class MidiProcessor(object):
         """
         encoding_method = self.get_encoding_method(encoding_method)
         if encoding_method == 'REMI':
-            return remi_utils.convert_remi_token_lists_to_token_str_lists(token_lists)
+            return enc_remi_utils.convert_remi_token_lists_to_token_str_lists(token_lists)
         elif encoding_method == 'TS1':
-            return ts1_utils.convert_ts1_token_lists_to_token_str_lists(token_lists)
+            return enc_ts1_utils.convert_ts1_token_lists_to_token_str_lists(token_lists)
         else:
             MidiProcessor.__raise_encoding_method_error(encoding_method)
 
@@ -693,7 +723,7 @@ class MidiProcessor(object):
         encoding_method = self.get_encoding_method(encoding_method)
         # 调用各encoding方式对应方法
         if encoding_method == 'REMI':
-            return remi_utils.convert_remi_token_str_to_token(token_str)
+            return enc_remi_utils.convert_remi_token_str_to_token(token_str)
         else:
             MidiProcessor.__raise_encoding_method_error(encoding_method)
 

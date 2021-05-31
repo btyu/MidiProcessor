@@ -2,8 +2,10 @@ import os
 import json
 
 
-def check_list_layers(list_to_check):
-    if isinstance(list_to_check, (list, tuple)):
+def check_list_layers(list_to_check, valid_iterable=(list,)):
+    if isinstance(list_to_check, valid_iterable):
+        if len(list_to_check) == 0:
+            return 1
         return check_list_layers(list_to_check[0]) + 1
     else:
         return 0
