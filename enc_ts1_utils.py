@@ -29,7 +29,7 @@ def convert_ts1_token_str_list_to_token_list(token_str_list):
     return enc_basic_utils.convert_basic_token_str_list_to_token_list(token_str_list)
 
 
-def convert_pos_info_to_ts1_token_lists(pos_to_info,
+def convert_pos_info_to_ts1_token_lists(pos_info_id,
 
                                         max_encoding_length=None,
                                         max_bar=None,
@@ -43,11 +43,11 @@ def convert_pos_info_to_ts1_token_lists(pos_to_info,
 
     encoding = []
 
-    max_pos = len(pos_to_info)
+    max_pos = len(pos_info_id)
     cur_bar = None
     cur_ts = None
     for pos in range(max_pos):
-        now_bar, now_ts, now_local_pos, now_tempo, now_insts_notes = pos_to_info[pos]
+        now_bar, now_ts, now_local_pos, now_tempo, now_insts_notes = pos_info_id[pos]
 
         cur_local_pos = now_local_pos
 
@@ -55,8 +55,10 @@ def convert_pos_info_to_ts1_token_lists(pos_to_info,
             cur_bar = now_bar
             encoding.append((const.BAR_ABBR, cur_bar))  # bar
 
-        if cur_ts != now_ts:
-            cur_ts = now_ts
+            if now_ts is not None and cur_ts != now_ts:
+                cur_ts = now_ts
+                assert cur_ts is not None
+
             encoding.append((const.TS_ABBR, cur_ts))  # ts
 
         if now_insts_notes is not None:

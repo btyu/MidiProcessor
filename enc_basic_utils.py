@@ -1,7 +1,11 @@
 # Author: Botao Yu
 
 def convert_basic_token_to_token_str(token):
-    return '%s-%d' % (token[0], token[1])
+    try:
+        return '%s-%d' % (token[0], token[1])
+    except TypeError:
+        print(token)
+        raise
 
 
 def convert_basic_token_list_to_token_str_list(token_list):

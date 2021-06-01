@@ -170,7 +170,7 @@ class MidiEncoder(object):
         cnt = 0
         bar = 0
         measure_length = None
-        ts = (4, 4)  # default MIDI time signature
+        ts = const.DEFAULT_TS  # default MIDI time signature
         for j in range(max_pos):
             now_ts = pos_info[j][1]
             if now_ts is not None:
