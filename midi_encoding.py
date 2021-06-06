@@ -130,6 +130,7 @@ class MidiEncoder(object):
                 zero_pos_ts_change = True
             ts_numerator = ts_change.numerator
             ts_denominator = ts_change.denominator
+            ts_numerator, ts_denominator = self.vm.reduce_time_signature(ts_numerator, ts_denominator)
             pos_info[pos][1] = (ts_numerator, ts_denominator)
         if not zero_pos_ts_change:
             pos_info[0][1] = const.DEFAULT_TS
@@ -165,7 +166,7 @@ class MidiEncoder(object):
                     pos_info[pos_start][4] = dict()
                 if inst_id not in pos_info[pos_start][4]:
                     pos_info[pos_start][4][inst_id] = []
-                pos_info[pos_start][4][inst_id].append([pitch, duration, velocity, pos_end])
+                pos_info[pos_start][4][inst_id].append([pitch, duration, velocity])
 
         cnt = 0
         bar = 0
@@ -195,8 +196,7 @@ class MidiEncoder(object):
         for idx, item in enumerate(pos_info_id):
             bar, ts, local_pos, tempo, insts_notes = item
             if ts is not None:
-                reduced_ts = self.vm.reduce_time_signature(*ts)
-                ts_id = self.vm.convert_ts_to_id(reduced_ts)
+                ts_id = self.vm.convert_ts_to_id(ts)
                 item[1] = ts_id
             if tempo is not None:
                 tempo_id = self.vm.convert_tempo_to_id(tempo)
@@ -206,7 +206,7 @@ class MidiEncoder(object):
                 for inst_id in insts_notes:
                     inst_notes = insts_notes[inst_id]
                     for inst_note in inst_notes:
-                        pitch, duration, velocity, pos_end = inst_note
+                        pitch, duration, velocity = inst_note
                         pitch_id = self.vm.convert_pitch_to_id(pitch, is_drum=inst_id == 128)
                         duration_id = self.vm.convert_dur_to_id(duration)
                         velocity_id = self.vm.convert_vel_to_id(velocity)

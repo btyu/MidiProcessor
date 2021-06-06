@@ -67,7 +67,7 @@ def convert_pos_info_to_ts1_token_lists(pos_info_id,
             insts_ids = sorted(list(cur_insts_notes.keys()))
             for inst_id in insts_ids:
                 inst_notes = sorted(cur_insts_notes[inst_id])
-                for pitch, duration, velocity, pos_end in inst_notes:
+                for pitch, duration, velocity in inst_notes:
                     encoding.append((const.PITCH_ABBR, pitch))  # pitch
                     encoding.append((const.DURATION_ABBR, duration))  # duration
 
@@ -173,13 +173,14 @@ def generate_midi_obj_from_ts1_token_list(token_list,
                                           tempo=const.DEFAULT_TEMPO,
                                           inst_id=const.DEFAULT_INST_ID,
                                           velocity=const.DEFAULT_VELOCITY,
-                                          ): # Todo: 增加TS
+                                          ):  # Todo: 增加TS
     # Bar, Pos, Pitch, Duration
 
     beat_note_factor = vocab_manager.beat_note_factor
     pos_resolution = vocab_manager.pos_resolution
 
     cur_bar_id = None
+    cur_ts_id = None
     cur_local_pos = None
     cur_ts_pos_per_bar = beat_note_factor * pos_resolution * ts[0] // ts[1]
     cur_global_bar_pos = None
@@ -197,10 +198,6 @@ def generate_midi_obj_from_ts1_token_list(token_list,
         for i in range(128 + 1)
     ]
     cur_inst = midi_obj.instruments[inst_id]
-
-    midi_obj.time_signature_changes.append(
-        miditoolkit.containers.TimeSignature(numerator=ts[0], denominator=ts[1], time=0)
-    )
 
     midi_obj.tempo_changes.append(
         miditoolkit.containers.TempoChange(tempo=tempo, time=0)
@@ -221,6 +218,17 @@ def generate_midi_obj_from_ts1_token_list(token_list,
                 else:
                     cur_global_bar_pos += cur_ts_pos_per_bar
                 cur_global_pos = cur_global_bar_pos
+        elif item_type == const.TS_ABBR:
+            if cur_ts_id != item_value:
+                cur_ts_id = item_value
+                cur_ts = vocab_manager.convert_id_to_ts(cur_ts_id)
+                cur_ts_pos_per_bar = beat_note_factor * pos_resolution * cur_ts[0] // cur_ts[1]
+                midi_obj.time_signature_changes.append(
+                    miditoolkit.containers.TimeSignature(numerator=cur_ts[0], denominator=cur_ts[1],
+                                                         time=vocab_manager.pos_to_time(cur_global_bar_pos,
+                                                                                        ticks_per_beat,
+                                                                                        pos_resolution=pos_resolution))
+                )
         elif item_type == const.POS_ABBR:
             if cur_local_pos != item_value:
                 cur_local_pos = item_value
@@ -238,10 +246,23 @@ def generate_midi_obj_from_ts1_token_list(token_list,
                 miditoolkit.containers.Note(start=start_time, end=end_time, pitch=cur_pitch, velocity=cur_velocity)
             )
         else:
-            raise ValueError("Unknown encoding type: %d" % item_type)
+            raise ValueError("Unknown encoding type: %s" % item_type)
 
     midi_obj.max_tick = max_tick
 
     midi_obj.instruments = [i for i in midi_obj.instruments if len(i.notes) > 0]
 
     return midi_obj
+
+
+# Not Finished
+def check_and_fix_prediction_token_list(token_list):
+    # B S O P D
+    try:
+        last_token = None
+        for token in token_list:
+            if last_token is None:
+                assert token[0] == const.BAR_ABBR
+                last_token = token
+    except AssertionError:
+        return False, token_list

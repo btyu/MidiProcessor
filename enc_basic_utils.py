@@ -33,4 +33,4 @@ def convert_basic_token_str_to_token(token_str):
 
 
 def convert_basic_token_str_list_to_token_list(token_str_list):
-    return [convert_basic_token_to_token_str(item) for item in token_str_list]
+    return [convert_basic_token_str_to_token(item) for item in token_str_list]

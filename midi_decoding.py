@@ -232,3 +232,14 @@ class MidiDecoder:
         else:
             raise ValueError("decode_from_token_list method is not implemented for encoding method %s"
                              % self.encoding_method)
+
+    # Not Finished
+    def check_and_fix_prediction_token_list(self, token_list):
+        if self.encoding_method == 'REMI':
+            raise ValueError("Todo rewrite for REMI")
+        elif self.encoding_method == 'TS1':
+            token_list = enc_ts1_utils.check_and_fix_prediction_token_list(token_list)
+        else:
+            raise ValueError("check_and_fix_prediction_token_list method is not implemented for encoding method %s"
+                             % self.encoding_method)
+        return token_list
