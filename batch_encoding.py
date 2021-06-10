@@ -24,6 +24,7 @@ def main():
     parser.add_argument('--output_base_name', type=str, default=None)
     parser.add_argument('--output_suffix', type=str, default='')
     parser.add_argument('--no_internal_blanks', action='store_true')
+    parser.add_argument('--no_skip_error', action='store_true')
     parser.add_argument('--dump_dict', action='store_true')
     parser.add_argument('--fairseq_dict', action='store_true')
     parser.add_argument('--num_workers', type=int, default=1)
@@ -71,6 +72,7 @@ def main():
 
     encoder = MidiEncoder(encoding_method=args.encoding_method,
                           key_profile_file=args.key_profile_file, )
+    skip_error = not args.no_skip_error
 
     multi_encodings = []
 
@@ -82,7 +84,8 @@ def main():
             right = min(left + num_workers, num_files)
 
             if pool is None:
-                results = process_file(encoder, file_path_list[left], args, track_dict, save=not args.output_one_file)
+                results = process_file(encoder, file_path_list[left], args, track_dict,
+                                       skip_error=skip_error, save=not args.output_one_file)
                 results = [results]
             else:
                 batch_files = file_path_list[left: right]
@@ -93,10 +96,14 @@ def main():
                                    batch_files,
                                    [args] * len_batch,
                                    [track_dict] * len_batch,
+                                   [skip_error] * len_batch,
                                    [not args.output_one_file] * len_batch)
 
             if args.output_one_file:
-                multi_encodings.extend(results)
+                for result in results:
+                    if result is None:
+                        continue
+                    multi_encodings.append(result)
 
             process_bar.update(len_batch)
 
@@ -110,8 +117,10 @@ def main():
         encoder.vm.dump_vocab(os.path.join(args.output_dir, 'dict.txt'), fairseq_dict=args.fairseq_dict)
 
 
-def process_file(encoder, file_path, args, track_dict, save=False):
+def process_file(encoder, file_path, args, track_dict, skip_error=True, save=False):
     basename = os.path.basename(file_path)
+    encodings = None
+    no_error = True
     try:
         encodings = encoder.encode_file(file_path,
                                         max_encoding_length=args.max_encoding_length,
@@ -121,12 +130,17 @@ def process_file(encoder, file_path, args, track_dict, save=False):
                                         remove_bar_idx=args.remove_bar_idx,
                                         normalize_keys=args.normalize_keys,
                                         tracks=None if track_dict is None else track_dict[basename])
+        encodings = encoder.convert_token_lists_to_token_str_lists(encodings)
     except Exception:
-        print('Error when encoding %s.' % file_path)
-        raise
-    encodings = encoder.convert_token_lists_to_token_str_lists(encodings)
+        tqdm.write('Error when encoding %s.' % file_path)
+        no_error = False
+        if skip_error:
+            import traceback
+            tqdm.write(traceback.format_exc())
+        else:
+            raise
 
-    if save:
+    if no_error and save:
         output_path = os.path.join(args.output_dir, basename + args.output_suffix)
         data_utils.dump_lists(encodings, output_path, no_internal_blanks=args.no_internal_blanks)
 

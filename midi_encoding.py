@@ -46,7 +46,7 @@ class MidiEncoder(object):
     @staticmethod
     def check_encoding_method(encoding_method):
         assert encoding_method in const.ENCODINGS, "Encoding method %s not in the supported: %s" % \
-                                                         (encoding_method, ', '.join(const.ENCODINGS))
+                                                   (encoding_method, ', '.join(const.ENCODINGS))
 
     # Finished
     def get_encoding_method(self, encoding_method=None):
@@ -224,7 +224,7 @@ class MidiEncoder(object):
 
                     cut_method='successive',
                     remove_bar_idx=False,
-                    normalize_keys=False,  # Todo
+                    normalize_keys=False,
                     tracks=None,
                     save_path=None):
         encoding_method = self.encoding_method
@@ -233,8 +233,8 @@ class MidiEncoder(object):
 
         pos_info = self.collect_pos_info(midi_obj, trunc_pos=trunc_pos, tracks=tracks)
 
-        # if normalize_keys:
-        #     pos_info = self.normalize_pitch(pos_info)
+        if normalize_keys:
+            pos_info = self.normalize_pitch(pos_info)
 
         pos_info_id = self.convert_pos_info_to_pos_info_id(pos_info)
 
@@ -263,7 +263,9 @@ class MidiEncoder(object):
 
     def normalize_pitch(self, pos_info):
         assert self.key_profile is not None, "Please load key_profile first, using load_key_profile method."
-        pitch_shift = keys_normalization.get_pitch_shift(pos_info, self.key_profile)
+        pitch_shift, _, _ = keys_normalization.get_pitch_shift(pos_info, self.key_profile,
+                                                               normalize=True, use_duration=True, use_velocity=True,
+                                                               ensure_valid_range=True)
         for bar, ts, pos, tempo, insts_notes in pos_info:
             if insts_notes is None:
                 continue
@@ -271,8 +273,9 @@ class MidiEncoder(object):
                 if inst_id == 128:
                     continue
                 inst_notes = insts_notes[inst_id]
-                for note_idx, (pitch, duration, velocity, pos_end) in enumerate(inst_notes):
-                    inst_notes[note_idx] = (pitch + pitch_shift, duration, velocity, pos_end)
+                for note_idx, (pitch, duration, velocity) in enumerate(inst_notes):
+                    # inst_notes[note_idx] = (pitch + pitch_shift, duration, velocity)
+                    inst_notes[note_idx][0] = pitch + pitch_shift
         return pos_info
 
     # def pos_info_to_remi_encoding(self, pos_to_info,
