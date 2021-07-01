@@ -35,6 +35,7 @@ def main():
     parser.add_argument('--trunc_pos', type=int, default=None)
     parser.add_argument('--cut_method', type=str, default='successive')
     parser.add_argument('--remove_bar_idx', action='store_true')
+    parser.add_argument('--remove_empty_bars', action='store_true')
     parser.add_argument('--normalize_keys', action='store_true')
     parser.add_argument('--key_profile_file', type=str, default=None)
     parser.add_argument('--track_dict', type=str, default=None)
@@ -79,42 +80,42 @@ def main():
     left = 0
     len_batch = 1
 
-    with tqdm(total=num_files) as process_bar:
-        while left < num_files:
-            right = min(left + num_workers, num_files)
+    try:
+        with tqdm(total=num_files) as process_bar:
+            while left < num_files:
+                right = min(left + num_workers, num_files)
 
-            if pool is None:
-                results = process_file(encoder, file_path_list[left], args, track_dict,
-                                       skip_error=skip_error, save=not args.output_one_file)
-                results = [results]
-            else:
-                batch_files = file_path_list[left: right]
-                len_batch = right - left
+                if pool is None:
+                    results = process_file(encoder, file_path_list[left], args, track_dict,
+                                           skip_error=skip_error, save=not args.output_one_file)
+                    results = [results]
+                else:
+                    batch_files = file_path_list[left: right]
+                    len_batch = right - left
 
-                results = pool.map(process_file,
-                                   [encoder] * len_batch,
-                                   batch_files,
-                                   [args] * len_batch,
-                                   [track_dict] * len_batch,
-                                   [skip_error] * len_batch,
-                                   [not args.output_one_file] * len_batch)
+                    results = pool.map(process_file,
+                                       [encoder] * len_batch,
+                                       batch_files,
+                                       [args] * len_batch,
+                                       [track_dict] * len_batch,
+                                       [skip_error] * len_batch,
+                                       [not args.output_one_file] * len_batch)
 
-            if args.output_one_file:
-                for result in results:
-                    if result is None:
-                        continue
-                    multi_encodings.append(result)
+                if args.output_one_file:
+                    for result in results:
+                        if result is None:
+                            continue
+                        multi_encodings.append(result)
 
-            process_bar.update(len_batch)
+                process_bar.update(len_batch)
 
-            left = right
-
-    if args.output_one_file:
-        output_path = os.path.join(args.output_dir, output_base_name + args.output_suffix)
-        data_utils.dump_lists(multi_encodings, output_path, no_internal_blanks=args.no_internal_blanks)
-
-    if args.dump_dict:
-        encoder.vm.dump_vocab(os.path.join(args.output_dir, 'dict.txt'), fairseq_dict=args.fairseq_dict)
+                left = right
+    finally:
+        if args.output_one_file:
+            output_path = os.path.join(args.output_dir, output_base_name + args.output_suffix)
+            data_utils.dump_lists(multi_encodings, output_path, no_internal_blanks=args.no_internal_blanks)
+        if args.dump_dict:
+            encoder.vm.dump_vocab(os.path.join(args.output_dir, 'dict.txt'), fairseq_dict=args.fairseq_dict)
 
 
 def process_file(encoder, file_path, args, track_dict, skip_error=True, save=False):
@@ -128,6 +129,7 @@ def process_file(encoder, file_path, args, track_dict, skip_error=True, save=Fal
                                         trunc_pos=args.trunc_pos,
                                         cut_method=args.cut_method,
                                         remove_bar_idx=args.remove_bar_idx,
+                                        remove_empty_bars=args.remove_empty_bars,
                                         normalize_keys=args.normalize_keys,
                                         tracks=None if track_dict is None else track_dict[basename])
         encodings = encoder.convert_token_lists_to_token_str_lists(encodings)

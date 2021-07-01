@@ -38,6 +38,7 @@ def convert_pos_info_to_ts1_token_lists(pos_info_id,
 
                                         max_bar_num=None,
                                         remove_bar_idx=False,
+                                        remove_empty_bars=False,
                                         ):
     # bar, ts, pos, pitch, duration
 
@@ -71,6 +72,9 @@ def convert_pos_info_to_ts1_token_lists(pos_info_id,
                     encoding.append((const.PITCH_ABBR, pitch))  # pitch
                     encoding.append((const.DURATION_ABBR, duration))  # duration
 
+    if remove_empty_bars:
+        encoding = do_remove_empty_bars(encoding)
+
     token_lists = cut_ts1_full_token_list(encoding,
                                           max_encoding_length=max_encoding_length,
                                           max_bar=max_bar,
@@ -98,7 +102,11 @@ def cut_ts1_full_token_list(encoding,
     )
 
     if any(direct_returns):
-        return [encoding[:]]
+        if remove_bar_idx:
+            encoding = cut_utils.do_remove_bar_idx(encoding)
+        else:
+            encoding = encoding[:]
+        return [encoding]
 
     ts1_check_cut_method(cut_method)
 
@@ -122,7 +130,7 @@ def cut_ts1_full_token_list(encoding,
         raise ValueError("No authorized bar in the encoding range.")
 
     if cut_method == 'successive':
-        return cut_utils.encoding_successive_cut(
+        encodings = cut_utils.encoding_successive_cut(
             encoding,
             const.BAR_ABBR,
             max_length=max_encoding_length,
@@ -132,10 +140,9 @@ def cut_ts1_full_token_list(encoding,
             authorize_bar=authorize_bar,
             len_encoding=len_encoding,
             max_bar_num=max_bar_num,
-            remove_bar_idx=remove_bar_idx,
         )
     elif cut_method == 'first':
-        return cut_utils.encoding_successive_cut(
+        encodings = cut_utils.encoding_successive_cut(
             encoding,
             const.BAR_ABBR,
             max_length=max_encoding_length,
@@ -145,10 +152,14 @@ def cut_ts1_full_token_list(encoding,
             authorize_bar=authorize_bar,
             len_encoding=max_encoding_length,
             max_bar_num=max_bar_num,
-            remove_bar_idx=remove_bar_idx,
         )
     else:
         raise ValueError("Cut method \"%s\" is not currently supported." % cut_method)
+
+    if remove_bar_idx:
+        encodings = [cut_utils.do_remove_bar_idx(encoding) for encoding in encodings]
+
+    return encodings
 
 
 def ts1_check_cut_method(cut_method):
@@ -253,6 +264,31 @@ def generate_midi_obj_from_ts1_token_list(token_list,
     midi_obj.instruments = [i for i in midi_obj.instruments if len(i.notes) > 0]
 
     return midi_obj
+
+
+def do_remove_empty_bars(encoding):
+    len_encoding = len(encoding)
+    valid_start = None
+    valid_end = len_encoding
+    for idx in range(len_encoding):
+        tag_abbr = encoding[idx][0]
+        if tag_abbr == const.BAR_ABBR:
+            valid_start = idx
+        elif tag_abbr in (const.POS_ABBR, const.PITCH_ABBR, const.DURATION_ABBR):
+            break
+    for idx in range(len_encoding - 1, -1, -1):
+        tag_abbr = encoding[idx][0]
+        if tag_abbr in (const.DURATION_ABBR, const.PITCH_ABBR, const.POS_ABBR):
+            break
+        elif tag_abbr == const.BAR_ABBR:
+            valid_end = idx
+
+    assert valid_start is not None
+    assert valid_start < valid_end
+
+    encoding = encoding[valid_start: valid_end]
+
+    return encoding
 
 
 # Not Finished

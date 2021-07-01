@@ -1,12 +1,12 @@
-MIDI_DIR=../../data/LMD/lmd_ts_10k
-TRAIN_LIST=../../processed_data/data_split/lmd_ts_10k_9000-500-500/train_list.txt
-VALID_LIST=../../processed_data/data_split/lmd_ts_10k_9000-500-500/valid_list.txt
-TEST_LIST=../../processed_data/data_split/lmd_ts_10k_9000-500-500/test_list.txt
-OUTPUT_DIR=../../processed_data/lmd_ts_10k/ts1_9000-500-500_melody_successive_1022_256_tokenization
+MIDI_DIR=../../data/LMD/lmd_melody
+TRAIN_LIST=../../processed_data/data_split/lmd_melody_99245-8822-2205/train_list.txt
+VALID_LIST=../../processed_data/data_split/lmd_melody_99245-8822-2205/valid_list.txt
+TEST_LIST=../../processed_data/data_split/lmd_melody_99245-8822-2205/test_list.txt
+OUTPUT_DIR=../../processed_data/lmd_melody/ts1.lmd_melody.99245_8822_2205.melody_track.reb.tokenization
 TRACK_DICT=../../data/LMD/main_melody_info/melody_midi_dict.json
 
-MAX_ENCODING_LENGTH=1022
-MAX_BAR=256
+MAX_ENCODING_LENGTH=20000000
+MAX_BAR=20000000
 NUM_WORKERS=64
 
 python batch_encoding.py $MIDI_DIR \
@@ -24,6 +24,7 @@ python batch_encoding.py $MIDI_DIR \
   --normalize_keys \
   --no_internal_blanks \
   --remove_bar_idx \
+  --remove_empty_bars \
   --track_dict $TRACK_DICT
 
 
@@ -42,6 +43,7 @@ python batch_encoding.py $MIDI_DIR \
   --normalize_keys \
   --no_internal_blanks \
   --remove_bar_idx \
+  --remove_empty_bars \
   --track_dict $TRACK_DICT
 
 
@@ -60,6 +62,7 @@ python batch_encoding.py $MIDI_DIR \
   --normalize_keys \
   --no_internal_blanks \
   --remove_bar_idx \
+  --remove_empty_bars \
   --track_dict $TRACK_DICT \
   --dump_dict \
   --fairseq_dict

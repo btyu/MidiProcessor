@@ -85,7 +85,8 @@ class MidiDecoder:
                     tempo=const.DEFAULT_TEMPO,
                     inst_id=const.DEFAULT_INST_ID,
                     velocity=const.DEFAULT_VELOCITY,
-                    save_path=None):
+                    save_path=None,
+                    scheme_name=None):
         """
         Decode MIDI from token str file for one song.
         :param file_path: The file path of the file that contains encodings for one song. Each line contains tokens of
@@ -97,6 +98,7 @@ class MidiDecoder:
         :param inst_id:
         :param velocity:
         :param save_path: Place to save MIDI file.
+        :param scheme_name:
         :return: List of MIDI obj, or MIDI obj if combine_pieces.
         """
 
@@ -106,7 +108,8 @@ class MidiDecoder:
                                                         ts=ts,
                                                         tempo=tempo,
                                                         inst_id=inst_id,
-                                                        velocity=velocity)
+                                                        velocity=velocity,
+                                                        scheme_name=scheme_name)
 
         if save_path is not None:
             data_utils.ensure_file_dir_to_save(save_path)
@@ -132,7 +135,8 @@ class MidiDecoder:
                                     ts=const.DEFAULT_TS,
                                     tempo=const.DEFAULT_TEMPO,
                                     inst_id=const.DEFAULT_INST_ID,
-                                    velocity=const.DEFAULT_VELOCITY):
+                                    velocity=const.DEFAULT_VELOCITY,
+                                    scheme_name=None):
         """
         Decode MIDI from token str lists for one file.
         :param token_str_lists: The token_str_lists of the tokens for one song.
@@ -165,7 +169,8 @@ class MidiDecoder:
                                                            ts=ts,
                                                            tempo=tempo,
                                                            inst_id=inst_id,
-                                                           velocity=velocity)
+                                                           velocity=velocity,
+                                                           scheme_name=scheme_name)
                 midi_objs.append(midi_obj)
             return midi_objs
 
@@ -176,7 +181,7 @@ class MidiDecoder:
                                    tempo=const.DEFAULT_TEMPO,
                                    inst_id=const.DEFAULT_INST_ID,
                                    velocity=const.DEFAULT_VELOCITY,
-                                   ):
+                                   scheme_name=None):
         """
         Decode MIDI obj from token_str_list.
         :param token_str_list: The token_str_list of the tokens for one piece.
@@ -185,8 +190,22 @@ class MidiDecoder:
         :param tempo:
         :param inst_id:
         :param velocity:
+        :param scheme_name:
         :return: Midi obj.
         """
+
+        if scheme_name is not None:
+            import importlib
+            scheme_split_utils = importlib.import_module('split_utils.%s.%s' %
+                                                         (self.encoding_method.lower(), scheme_name))
+            scheme_restore_encoding = getattr(scheme_split_utils, 'restore_encoding', None)
+            assert scheme_restore_encoding is not None, "No restore_encoding method for (%s, %s)" % \
+                                                        (self.encoding_method, scheme_name)
+        else:
+            scheme_restore_encoding = None
+
+        if scheme_restore_encoding is not None:
+            token_str_list = scheme_restore_encoding(token_str_list)
 
         token_list = self.convert_token_str_list_to_token_list(token_str_list)
         midi_obj = self.decode_from_token_list(token_list,
@@ -202,8 +221,7 @@ class MidiDecoder:
                                ts=const.DEFAULT_TS,
                                tempo=const.DEFAULT_TEMPO,
                                inst_id=const.DEFAULT_INST_ID,
-                               velocity=const.DEFAULT_VELOCITY,
-                               ):
+                               velocity=const.DEFAULT_VELOCITY):
         """
 
         :param token_list:
@@ -212,6 +230,7 @@ class MidiDecoder:
         :param tempo:
         :param inst_id:
         :param velocity:
+        :param scheme_name:
         :return:
         """
         # Todo: check and fix token_list for every encoding method.

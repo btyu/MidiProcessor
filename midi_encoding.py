@@ -225,6 +225,7 @@ class MidiEncoder(object):
                     cut_method='successive',
                     remove_bar_idx=False,
                     normalize_keys=False,
+                    remove_empty_bars=False,
                     tracks=None,
                     save_path=None):
         encoding_method = self.encoding_method
@@ -249,6 +250,7 @@ class MidiEncoder(object):
                 cut_method=cut_method,
                 max_bar_num=self.vm.max_bar_num,
                 remove_bar_idx=remove_bar_idx,
+                remove_empty_bars=remove_empty_bars,
             )
         else:
             MidiEncoder.__raise_encoding_method_error(encoding_method)

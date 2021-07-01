@@ -41,20 +41,38 @@ def get_pitch_shift(pos_info, key_profile, normalize=True, use_duration=True, us
     notes, min_pitch, max_pitch = get_notes_from_pos_info(pos_info)
     if len(notes) == 0:
         return 0, None, None
-    histogram = get_pitch_class_histogram(notes, normalize=normalize,
-                                          use_duration=use_duration, use_velocity=use_velocity)
-    key_candidate = np.dot(key_profile, histogram)
-    key_temp = np.where(key_candidate == max(key_candidate))
-    try:
-        major_index = key_temp[0][0]
-        minor_index = key_temp[0][1]
-    except IndexError:
-        print(len(notes))
-        print(notes)
-        print(histogram)
-        print(key_candidate)
-        print(key_temp)
-        raise
+    histogram = None
+    key_candidate = None
+    key_temp = None
+    major_index = None
+    minor_index = None
+    duration_velocity = ((use_duration, use_velocity),
+                         (use_duration, not use_velocity),
+                         (not use_duration, use_velocity),
+                         (not use_duration, not use_velocity))
+    for choice_idx, (use_duration, use_velocity) in enumerate(duration_velocity):
+        try:
+            histogram = get_pitch_class_histogram(notes, normalize=normalize,
+                                                  use_duration=use_duration, use_velocity=use_velocity)
+            key_candidate = np.dot(key_profile, histogram)
+            key_temp = np.where(key_candidate == max(key_candidate))
+            major_index = key_temp[0][0]
+            minor_index = key_temp[0][1]
+        except IndexError:
+            if choice_idx == len(duration_velocity) - 1:
+                print(len(notes))
+                print(notes)
+                print(histogram)
+                print(key_candidate)
+                print(key_temp)
+                raise
+            else:
+                print('Try duration (%s) / velocity (%s) failed. Try another (%s %s).' % (
+                    use_duration, use_velocity,
+                    duration_velocity[choice_idx + 1][0], duration_velocity[choice_idx + 1][1]
+                ))
+                continue
+
     major_count = histogram[major_index]
     minor_count = histogram[minor_index % 12]
     if major_count < minor_count:
