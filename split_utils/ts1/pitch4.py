@@ -8,7 +8,7 @@
 # D - D
 # D - P
 
-def split_sequence_pitch4(ls_list, min_target_len=None):
+def split_sequence(ls_list, min_target_len=None):
     src_idx = 0
     tgt_idx = 0
     src_list = []

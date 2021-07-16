@@ -1,6 +1,6 @@
 import typing
 import pickle
-import miditoolkit
+import midi_utils
 from copy import deepcopy
 
 import const
@@ -69,30 +69,6 @@ class MidiEncoder(object):
     # ===== Basic Functions ===
     def time_to_pos(self, *args, **kwargs):
         return self.vm.time_to_pos(*args, **kwargs)
-
-    # Finished
-    @staticmethod
-    def load_midi(file_path):
-        """
-        Open and check MIDI file, return MIDI object by miditoolkit.
-        :param file_path:
-        :return:
-        """
-        midi_obj = miditoolkit.midi.parser.MidiFile(file_path)
-
-        # check abnormal values in parse result
-        max_time_length = 2 ** 31
-        assert all(0 <= j.start < max_time_length
-                   and 0 <= j.end < max_time_length
-                   for i in midi_obj.instruments for j in i.notes), 'Bad note time'
-        assert all(0 < j.numerator < max_time_length and 0 < j.denominator < max_time_length for j in
-                   midi_obj.time_signature_changes), 'Bad time signature value'
-        assert 0 < midi_obj.ticks_per_beat < max_time_length, 'Bad ticks per beat'
-
-        midi_notes_count = sum(len(inst.notes) for inst in midi_obj.instruments)
-        assert midi_notes_count > 0, 'Blank note.'
-
-        return midi_obj
 
     def collect_pos_info(self, midi_obj, trunc_pos=None, tracks=None):
         if tracks is not None:
@@ -230,7 +206,7 @@ class MidiEncoder(object):
                     save_path=None):
         encoding_method = self.encoding_method
 
-        midi_obj = MidiEncoder.load_midi(file_path)
+        midi_obj = midi_utils.load_midi(file_path)
 
         pos_info = self.collect_pos_info(midi_obj, trunc_pos=trunc_pos, tracks=tracks)
 
