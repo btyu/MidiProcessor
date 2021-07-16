@@ -1,6 +1,6 @@
 # Author: Botao Yu
 
-import const
+from . import const
 import inspect
 
 

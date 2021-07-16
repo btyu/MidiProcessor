@@ -1,6 +1,6 @@
 # Author: Botao Yu
 
-import enc_basic_utils
+from . import enc_basic_utils
 
 
 def convert_remi_token_to_token_str(token):

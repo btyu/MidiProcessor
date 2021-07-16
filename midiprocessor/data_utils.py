@@ -18,15 +18,20 @@ def ensure_file_dir_to_save(file_path):
     os.makedirs(dir_name, exist_ok=True)
 
 
-def load_list(file_path):
-    lines = []
+def load_list_iter(file_path, ignore_blank_lines=True):
     with open(file_path, 'r', encoding='utf-8') as f:
         for l in f:
             ls = l.strip()
             blank = ls == ''
-            if blank:
+            if blank and ignore_blank_lines:
                 continue
-            lines.append(ls)
+            yield ls
+
+
+def load_list(file_path, ignore_blank_lines=True):
+    lines = []
+    for ls in load_list_iter(file_path, ignore_blank_lines=ignore_blank_lines):
+        lines.append(ls)
     return lines
 
 

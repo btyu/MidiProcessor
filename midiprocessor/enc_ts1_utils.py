@@ -2,9 +2,9 @@
 
 import miditoolkit
 
-import const
-import enc_basic_utils
-import cut_utils
+from . import const
+from . import enc_basic_utils
+from . import cut_utils
 
 TS1_CUT_METHOD = ('successive', 'cut')
 

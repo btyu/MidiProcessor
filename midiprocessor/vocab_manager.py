@@ -3,8 +3,8 @@
 import os
 import math
 
-import const
-import vocab_config
+from . import const
+from . import vocab_config
 
 
 class VocabManager:

@@ -1,14 +1,14 @@
 import typing
 import pickle
-import midi_utils
+from . import midi_utils
 from copy import deepcopy
 
-import const
-from vocab_manager import VocabManager
-import data_utils
-import enc_remi_utils
-import enc_ts1_utils
-import keys_normalization
+from . import const
+from .vocab_manager import VocabManager
+from . import data_utils
+from . import enc_remi_utils
+from . import enc_ts1_utils
+from . import keys_normalization
 
 
 class MidiEncoder(object):
