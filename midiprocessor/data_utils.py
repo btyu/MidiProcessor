@@ -1,6 +1,7 @@
 import os
 import json
 import zipfile
+import hashlib
 
 
 def check_list_layers(list_to_check, valid_iterable=(list,)):
@@ -96,7 +97,7 @@ def dump_lists(lists, file_path, no_internal_blanks=False, open_mode='w'):
             for idx2 in range(len2):
                 item2 = item1[idx2]  # 一个文件中的一行
                 f.write(' '.join(item2) + '\n')
-            if not no_internal_blanks and idx1 < len1 - 1:
+            if not no_internal_blanks:
                 f.write('\n')
 
 
@@ -125,31 +126,52 @@ def get_file_paths(data_dir, file_list=None, suffix=None):
 
 
 def get_zip_file_paths(zip_path=None, zip_obj=None, file_list=None, suffix=None):
-    if zip_obj is None:
-        zip_obj = zipfile.ZipFile(zip_path, 'r')
-    file_path_list = []
-    if file_list is None:
-        temp_file_list = zip_obj.namelist()
-        for file_path in temp_file_list:
-            if file_path.endswith('/'):
-                continue
-            if suffix is not None and not file_path.endswith(suffix):
-                continue
-            file_path_list.append(file_path)
-    else:
-        if isinstance(file_list, str):
-            if file_list.endswith('.json'):
-                with open(file_list, 'r') as f:
-                    file_list = json.load(f)
-            else:
-                file_list = load_list(file_list)
-        for file_name in file_list:
-            if suffix is not None and not file_name.endswith(suffix):
-                continue
-            file_path_list.append(file_name)
+    close_zip = False
+    try:
+        if zip_obj is None:
+            close_zip = True
+            zip_obj = zipfile.ZipFile(zip_path, 'r')
+        file_path_list = []
+        if file_list is None:
+            temp_file_list = zip_obj.namelist()
+            for file_path in temp_file_list:
+                if file_path.endswith('/'):
+                    continue
+                if suffix is not None and not file_path.endswith(suffix):
+                    continue
+                file_path_list.append(file_path)
+        else:
+            if isinstance(file_list, str):
+                if file_list.endswith('.json'):
+                    with open(file_list, 'r') as f:
+                        file_list = json.load(f)
+                else:
+                    file_list = load_list(file_list)
+            for file_name in file_list:
+                if suffix is not None and not file_name.endswith(suffix):
+                    continue
+                file_path_list.append(file_name)
+    finally:
+        if close_zip and zip_obj is not None:
+            zip_obj.close()
+
     return file_path_list
 
 
 def remove_internal_blanks(input_path, output_path):
     li = load_list(input_path)
     dump_list(li, output_path)
+
+
+def get_md5_sum(file_path=None, file_obj=None):
+    close_file = False
+    try:
+        if file_obj is None:
+            close_file = True
+            file_obj = open(file_path, 'rb')
+        md5sum = hashlib.md5(file_obj.read()).hexdigest()
+    finally:
+        if close_file and file_obj is not None:
+            file_obj.close()
+
+    return md5sum
