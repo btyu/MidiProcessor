@@ -1,3 +1,4 @@
+import os
 import typing
 import pickle
 from . import midi_utils
@@ -11,10 +12,13 @@ from . import enc_ts1_utils
 from . import keys_normalization
 
 
+file_dir = os.path.dirname(__file__)
+
+
 class MidiEncoder(object):
     def __init__(self,
                  encoding_method,
-                 key_profile_file='key_profile.pickle',
+                 key_profile_file=None,
                  ):
         # ===== Check =====
         MidiEncoder.check_encoding_method(encoding_method)
@@ -25,8 +29,9 @@ class MidiEncoder(object):
         self.vm = VocabManager()
 
         self.key_profile = None
-        if key_profile_file is not None:
-            self.load_key_profile(key_profile_file)
+        if key_profile_file is None:
+            key_profile_file = os.path.join(file_dir, 'key_profile.pickle')
+        self.load_key_profile(key_profile_file)
 
         # ===== Unauthorized =====
         # self.deduplicate = True
@@ -95,6 +100,11 @@ class MidiEncoder(object):
             for _ in range(max_pos)
         ]
         pos_info: typing.List
+        # bar: every pos
+        # ts: only at pos where it changes, otherwise None
+        # local_pos: every pos
+        # tempo: only at pos where it changes, otherwise None
+        # insts_notes: only at pos where the note starts, otherwise None
 
         ts_changes = midi_obj.time_signature_changes
         zero_pos_ts_change = False
@@ -203,10 +213,12 @@ class MidiEncoder(object):
                     normalize_keys=False,
                     remove_empty_bars=False,
                     tracks=None,
-                    save_path=None):
+                    save_path=None,
+                    midi_obj=None):
         encoding_method = self.encoding_method
 
-        midi_obj = midi_utils.load_midi(file_path)
+        if midi_obj is None:
+            midi_obj = midi_utils.load_midi(file_path)
 
         pos_info = self.collect_pos_info(midi_obj, trunc_pos=trunc_pos, tracks=tracks)
 
@@ -217,7 +229,15 @@ class MidiEncoder(object):
 
         token_lists = None
         if encoding_method == 'REMI':  # Todo: REMI encoding参考原版重写
-            MidiEncoder.__raise_encoding_method_error(encoding_method)
+            token_lists = enc_remi_utils.convert_pos_info_to_remi_token_lists(
+                pos_info_id,
+                max_encoding_length=max_encoding_length,
+                max_bar=max_bar,
+                cut_method=cut_method,
+                max_bar_num=self.vm.max_bar_num,
+                remove_bar_idx=remove_bar_idx,
+                remove_empty_bars=remove_empty_bars,
+            )
         elif encoding_method == 'TS1':
             token_lists = enc_ts1_utils.convert_pos_info_to_ts1_token_lists(
                 pos_info_id,

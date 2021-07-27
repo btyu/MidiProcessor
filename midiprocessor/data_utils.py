@@ -1,5 +1,6 @@
 import os
 import json
+import zipfile
 
 
 def check_list_layers(list_to_check, valid_iterable=(list,)):
@@ -78,7 +79,7 @@ def load_lists(file_path, keep_full_dim=False):
     return multi_encodings
 
 
-def dump_lists(lists, file_path, no_internal_blanks=False):
+def dump_lists(lists, file_path, no_internal_blanks=False, open_mode='w'):
     ensure_file_dir_to_save(file_path)
 
     list_layers = check_list_layers(lists)
@@ -87,7 +88,7 @@ def dump_lists(lists, file_path, no_internal_blanks=False):
     for idx in range(add_layers):
         lists = [lists]
 
-    with open(file_path, 'w', encoding='utf-8') as f:
+    with open(file_path, open_mode, encoding='utf-8') as f:
         len1 = len(lists)
         for idx1 in range(len1):
             item1 = lists[idx1]
@@ -120,6 +121,32 @@ def get_file_paths(data_dir, file_list=None, suffix=None):
                 continue
             file_path = os.path.join(data_dir, file_name)
             file_path_list.append(file_path)
+    return file_path_list
+
+
+def get_zip_file_paths(zip_path=None, zip_obj=None, file_list=None, suffix=None):
+    if zip_obj is None:
+        zip_obj = zipfile.ZipFile(zip_path, 'r')
+    file_path_list = []
+    if file_list is None:
+        temp_file_list = zip_obj.namelist()
+        for file_path in temp_file_list:
+            if file_path.endswith('/'):
+                continue
+            if suffix is not None and not file_path.endswith(suffix):
+                continue
+            file_path_list.append(file_path)
+    else:
+        if isinstance(file_list, str):
+            if file_list.endswith('.json'):
+                with open(file_list, 'r') as f:
+                    file_list = json.load(f)
+            else:
+                file_list = load_list(file_list)
+        for file_name in file_list:
+            if suffix is not None and not file_name.endswith(suffix):
+                continue
+            file_path_list.append(file_name)
     return file_path_list
 
 

@@ -105,7 +105,8 @@ def cut_ts1_full_token_list(encoding,
         if remove_bar_idx:
             encoding = cut_utils.do_remove_bar_idx(encoding)
         else:
-            encoding = encoding[:]
+            encoding = cut_utils.ensure_bar_idx(encoding, 0, const.BAR_ABBR,
+                                                max_bar_num=max_bar_num)
         return [encoding]
 
     ts1_check_cut_method(cut_method)

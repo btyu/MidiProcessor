@@ -236,8 +236,15 @@ class MidiDecoder:
         # Todo: check and fix token_list for every encoding method.
 
         if self.encoding_method == 'REMI':
-            # return self.remi_encoding_to_midi_obj(token_list)  # Todo: 修改此函数
-            raise ValueError("Todo rewrite for REMI")
+            token_list = enc_remi_utils.fix_remi_token_list(token_list)
+            return enc_remi_utils.generate_midi_obj_from_remi_token_list(
+                token_list, self.vm,
+                ticks_per_beat=ticks_per_beat,
+                ts=ts,
+                tempo=tempo,
+                inst_id=inst_id,
+                velocity=velocity,
+            )
         elif self.encoding_method == 'TS1':
             token_list = enc_ts1_utils.fix_ts1_token_list(token_list)
             return enc_ts1_utils.generate_midi_obj_from_ts1_token_list(

@@ -2,7 +2,7 @@
 import miditoolkit
 
 
-def load_midi(file_path, midi_checker='default'):
+def load_midi(file_path=None, file=None, midi_checker='default'):
     """
     Open and check MIDI file, return MIDI object by miditoolkit.
     :param file_path:
@@ -10,7 +10,7 @@ def load_midi(file_path, midi_checker='default'):
     :return:
     """
     try:
-        midi_obj = miditoolkit.midi.parser.MidiFile(file_path)
+        midi_obj = miditoolkit.midi.parser.MidiFile(filename=file_path, file=file)
     except:
         print("Load MIDI file error: %s" % file_path)
         raise
