@@ -9,11 +9,7 @@ def load_midi(file_path=None, file=None, midi_checker='default'):
     :param midi_checker:
     :return:
     """
-    try:
-        midi_obj = miditoolkit.midi.parser.MidiFile(filename=file_path, file=file)
-    except:
-        print("Load MIDI file error: %s" % file_path)
-        raise
+    midi_obj = miditoolkit.midi.parser.MidiFile(filename=file_path, file=file)
 
     if midi_checker is not None:
         if isinstance(midi_checker, str):

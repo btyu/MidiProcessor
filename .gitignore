@@ -131,8 +131,6 @@ dmypy.json
 .idea/
 .vscode/
 
-test-*.ipynb
-
 files/
 
 *.mid

@@ -125,7 +125,9 @@ def get_file_paths(data_dir, file_list=None, suffix=None):
     return file_path_list
 
 
-def get_zip_file_paths(zip_path=None, zip_obj=None, file_list=None, suffix=None):
+def get_zip_file_paths(zip_path=None, zip_obj=None, file_list=None, suffixes=None):
+    if suffixes is not None and isinstance(suffixes, str):
+        suffixes = (suffixes,)
     close_zip = False
     try:
         if zip_obj is None:
@@ -137,8 +139,14 @@ def get_zip_file_paths(zip_path=None, zip_obj=None, file_list=None, suffix=None)
             for file_path in temp_file_list:
                 if file_path.endswith('/'):
                     continue
-                if suffix is not None and not file_path.endswith(suffix):
-                    continue
+                if suffixes is not None and len(suffixes) > 0:
+                    not_in = True
+                    for suffix in suffixes:
+                        if file_path.endswith(suffix):
+                            not_in = False
+                            break
+                    if not_in:
+                        continue
                 file_path_list.append(file_path)
         else:
             if isinstance(file_list, str):
@@ -148,8 +156,14 @@ def get_zip_file_paths(zip_path=None, zip_obj=None, file_list=None, suffix=None)
                 else:
                     file_list = load_list(file_list)
             for file_name in file_list:
-                if suffix is not None and not file_name.endswith(suffix):
-                    continue
+                if suffixes is not None and len(suffixes) > 0:
+                    not_in = True
+                    for suffix in suffixes:
+                        if file_name.endswith(suffix):
+                            not_in = False
+                            break
+                    if not_in:
+                        continue
                 file_path_list.append(file_name)
     finally:
         if close_zip and zip_obj is not None:
