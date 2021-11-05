@@ -134,3 +134,5 @@ dmypy.json
 files/
 
 *.mid
+
+group_result.bin

@@ -9,6 +9,7 @@ from .vocab_manager import VocabManager
 from . import data_utils
 from . import enc_remi_utils
 from . import enc_ts1_utils
+from . import enc_tg1_utils
 from . import keys_normalization
 
 
@@ -30,7 +31,7 @@ class MidiEncoder(object):
 
         self.key_profile = None
         if key_profile_file is None:
-            key_profile_file = os.path.join(file_dir, 'key_profile.pickle')
+            key_profile_file = os.path.join(file_dir, const.KEY_PROFILE)
         self.load_key_profile(key_profile_file)
 
         # ===== Unauthorized =====
@@ -240,6 +241,16 @@ class MidiEncoder(object):
             )
         elif encoding_method == 'TS1':
             token_lists = enc_ts1_utils.convert_pos_info_to_ts1_token_lists(
+                pos_info_id,
+                max_encoding_length=max_encoding_length,
+                max_bar=max_bar,
+                cut_method=cut_method,
+                max_bar_num=self.vm.max_bar_num,
+                remove_bar_idx=remove_bar_idx,
+                remove_empty_bars=remove_empty_bars,
+            )
+        elif encoding_method == 'TG1':
+            token_lists = enc_tg1_utils.convert_pos_info_to_tg1_token_lists(
                 pos_info_id,
                 max_encoding_length=max_encoding_length,
                 max_bar=max_bar,
