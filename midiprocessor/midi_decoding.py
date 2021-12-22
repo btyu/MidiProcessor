@@ -4,6 +4,7 @@ from . import const
 from .vocab_manager import VocabManager
 from . import data_utils
 from . import enc_remi_utils
+from . import enc_remigen_utils
 from . import enc_ts1_utils
 
 
@@ -238,6 +239,16 @@ class MidiDecoder:
         if self.encoding_method == 'REMI':
             token_list = enc_remi_utils.fix_remi_token_list(token_list)
             return enc_remi_utils.generate_midi_obj_from_remi_token_list(
+                token_list, self.vm,
+                ticks_per_beat=ticks_per_beat,
+                ts=ts,
+                tempo=tempo,
+                inst_id=inst_id,
+                velocity=velocity,
+            )
+        elif self.encoding_method == 'REMIGEN':
+            token_list = enc_remigen_utils.fix_remigen_token_list(token_list)
+            return enc_remigen_utils.generate_midi_obj_from_remigen_token_list(
                 token_list, self.vm,
                 ticks_per_beat=ticks_per_beat,
                 ts=ts,

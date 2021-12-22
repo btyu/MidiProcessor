@@ -1,6 +1,5 @@
 # Author: Botao Yu
 
-
 import os
 import json
 import argparse
@@ -10,28 +9,7 @@ from tqdm import tqdm
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 
-from midiprocessor import MidiEncoder, data_utils, midi_utils, ENCODINGS
-
-
-def add_args_for_batch_encoding(parser):
-    parser.add_argument('midi_dir')
-    parser.add_argument('--encoding_method', choices=ENCODINGS)
-    parser.add_argument('--file_list', type=str, default=None)
-    parser.add_argument('--only_mid', action='store_true')
-    parser.add_argument('--mid_names', type=lambda x: x.split(), default=('.mid', '.midi'))  # Todo: make it work
-    parser.add_argument('--output_one_file', action='store_true')
-    parser.add_argument('--output_dir', type=str, default='tokenization')
-    parser.add_argument('--output_base_name', type=str, default=None)
-    parser.add_argument('--output_suffix', type=str, default='')
-    parser.add_argument('--no_internal_blanks', action='store_true')
-    parser.add_argument('--no_skip_error', action='store_true')
-    parser.add_argument('--dump_dict', action='store_true')
-    parser.add_argument('--fairseq_dict', action='store_true')
-    parser.add_argument('--num_workers', type=int, default=None)
-    parser.add_argument('--one_save', action='store_true')
-    parser.add_argument('--save_freq', type=int, default=1024)
-    parser.add_argument('--zip', action='store_true')
-    parser.add_argument('--dump_log', action='store_true')  # Todo
+from midiprocessor import MidiEncoder, data_utils, midi_utils
 
 
 def main():

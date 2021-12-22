@@ -8,6 +8,7 @@ from . import const
 from .vocab_manager import VocabManager
 from . import data_utils
 from . import enc_remi_utils
+from . import enc_remigen_utils
 from . import enc_ts1_utils
 from . import enc_tg1_utils
 from . import keys_normalization
@@ -148,6 +149,7 @@ class MidiEncoder(object):
                 pos_start = self.time_to_pos(start_time, midi_obj.ticks_per_beat)
                 pos_end = self.time_to_pos(end_time, midi_obj.ticks_per_beat)
                 duration = pos_end - pos_start
+                duration = max(1, duration)
 
                 if pos_info[pos_start][4] is None:
                     pos_info[pos_start][4] = dict()
@@ -231,6 +233,16 @@ class MidiEncoder(object):
         token_lists = None
         if encoding_method == 'REMI':  # Todo: REMI encoding参考原版重写
             token_lists = enc_remi_utils.convert_pos_info_to_remi_token_lists(
+                pos_info_id,
+                max_encoding_length=max_encoding_length,
+                max_bar=max_bar,
+                cut_method=cut_method,
+                max_bar_num=self.vm.max_bar_num,
+                remove_bar_idx=remove_bar_idx,
+                remove_empty_bars=remove_empty_bars,
+            )
+        elif encoding_method == 'REMIGEN':
+            token_lists = enc_remigen_utils.convert_pos_info_to_remigen_token_lists(
                 pos_info_id,
                 max_encoding_length=max_encoding_length,
                 max_bar=max_bar,

@@ -7,38 +7,58 @@ from . import cut_utils
 
 REMI_CUT_METHOD = ('successive', 'cut')
 
+INST_TYPE_MAPPING = {
+    (0, 8): 2,  # Piano
+    (8, 16): 13,  # Chromatic Percussion
+    (16, 24): 7,  # Organ
+    (24, 32): 3,  # Guitar
+    (32, 40): 1,  # Bass
+    (40, 48): 5,  # String
+    (48, 56): 6,  # Ensemble
+    (56, 64): 9,  # Brass
+    (64, 72): 8,  # Reed
+    (72, 80): 10,  # Pipe
+    (80, 88): 11,  # Synth Lead
+    (88, 96): 12,  # Synth Pad
+    (96, 104): 15,  # Synth Effect
+    (104, 112): 4,  # Ethnic
+    (112, 120): 14,  # Percussive
+    (120, 128): 16,  # Sound Effects
+    (128, 129): 0,  # Percussion
+}
 
-def convert_remi_token_to_token_str(token):
+
+def convert_remigen_token_to_token_str(token):
     return enc_basic_utils.convert_basic_token_to_token_str(token)
 
 
-def convert_remi_token_list_to_token_str_list(token_list):
+def convert_remigen_token_list_to_token_str_list(token_list):
     return enc_basic_utils.convert_basic_token_list_to_token_str_list(token_list)
 
 
-def convert_remi_token_lists_to_token_str_lists(token_lists):
+def convert_remigen_token_lists_to_token_str_lists(token_lists):
     return enc_basic_utils.convert_basic_token_lists_to_token_str_lists(token_lists)
 
 
-def convert_remi_token_str_to_token(token_str):
+def convert_remigen_token_str_to_token(token_str):
     return enc_basic_utils.convert_basic_token_str_to_token(token_str)
 
 
-def convert_remi_token_str_list_to_token_list(token_str_list):
+def convert_remigen_token_str_list_to_token_list(token_str_list):
     return enc_basic_utils.convert_basic_token_str_list_to_token_list(token_str_list)
 
 
-def convert_pos_info_to_remi_token_lists(pos_info_id,
+def convert_pos_info_to_remigen_token_lists(pos_info_id,
 
-                                         max_encoding_length=None,
-                                         max_bar=None,
+                                            max_encoding_length=None,
+                                            max_bar=None,
 
-                                         cut_method='successive',
+                                            cut_method='successive',
 
-                                         max_bar_num=None,
-                                         remove_bar_idx=False,
-                                         remove_empty_bars=False,
-                                         ):
+                                            max_bar_num=None,
+                                            remove_bar_idx=False,
+                                            remove_empty_bars=False,
+                                            ):
     # bar, ts, pos, pitch, duration
 
     encoding = []
@@ -58,8 +78,9 @@ def convert_pos_info_to_remi_token_lists(pos_info_id,
         cur_local_pos = now_local_pos
 
         if cur_bar != now_bar:
+            if cur_bar is not None:
+                encoding.append((const.BAR_ABBR, 1))  # bar
             cur_bar = now_bar
-            encoding.append((const.BAR_ABBR, cur_bar))  # bar
 
             if now_ts is not None and cur_ts != now_ts:
                 cur_ts = now_ts
@@ -80,7 +101,13 @@ def convert_pos_info_to_remi_token_lists(pos_info_id,
 
         if now_insts_notes is not None:
             cur_insts_notes = now_insts_notes
-            insts_ids = sorted(list(cur_insts_notes.keys()))
+
+            def get_type_group_id(x):
+                for r in INST_TYPE_MAPPING:
+                    if x in range(*r):
+                        return INST_TYPE_MAPPING[r], x
+                raise ValueError(x)
+            insts_ids = sorted(list(cur_insts_notes.keys()), key=get_type_group_id)
             for inst_id in insts_ids:
                 encoding.append((const.INST_ABBR, inst_id))  # inst
                 inst_notes = sorted(cur_insts_notes[inst_id])
@@ -88,6 +115,8 @@ def convert_pos_info_to_remi_token_lists(pos_info_id,
                     encoding.append((const.PITCH_ABBR, pitch))  # pitch
                     encoding.append((const.DURATION_ABBR, duration))  # duration
                     encoding.append((const.VELOCITY_ABBR, velocity))  # velocity
+
+    encoding.append((const.BAR_ABBR, 1))  # bar
 
     if remove_empty_bars:
         encoding = do_remove_empty_bars(encoding)
@@ -103,7 +132,7 @@ def convert_pos_info_to_remi_token_lists(pos_info_id,
     return token_lists
 
 
-def remi_check_cut_method(cut_method):
+def remigen_check_cut_method(cut_method):
     assert cut_method in REMI_CUT_METHOD, "Cut method \"%s\" not in the supported: %s" % \
                                           (cut_method, ', '.join(REMI_CUT_METHOD))
 
@@ -124,14 +153,17 @@ def cut_remi_full_token_list(encoding,
     )
 
     if any(direct_returns):
-        if remove_bar_idx:
-            encoding = cut_utils.do_remove_bar_idx(encoding)
-        else:
-            encoding = cut_utils.ensure_bar_idx(encoding, 0, const.BAR_ABBR,
-                                                max_bar_num=max_bar_num)
+        # if remove_bar_idx:
+        #     pass
+        #     encoding = cut_utils.do_remove_bar_idx(encoding)
+        # else:
+        #     encoding = cut_utils.ensure_bar_idx(encoding, 0, const.BAR_ABBR,
+        #                                         max_bar_num=max_bar_num)
         return [encoding]
 
-    remi_check_cut_method(cut_method)
+    raise NotImplementedError
+
+    remigen_check_cut_method(cut_method)
 
     def get_bar_offset(token_list):  # 获取第一个bar的下标
         for idx, item in enumerate(token_list):
@@ -191,7 +223,7 @@ def do_remove_empty_bars(encoding):
     valid_end = len_encoding
     for idx in range(len_encoding):
         tag_abbr = encoding[idx][0]
-        if tag_abbr == const.BAR_ABBR:
+        if tag_abbr == const.TS_ABBR:
             valid_start = idx
         elif tag_abbr in (const.POS_ABBR, const.TEMPO_ABBR, const.INST_ABBR,
                           const.PITCH_ABBR, const.DURATION_ABBR, const.VELOCITY_ABBR):
@@ -202,7 +234,7 @@ def do_remove_empty_bars(encoding):
                         const.INST_ABBR, const.TEMPO_ABBR, const.POS_ABBR):
             break
         elif tag_abbr == const.BAR_ABBR:
-            valid_end = idx
+            valid_end = idx + 1
 
     assert valid_start is not None
     assert valid_start < valid_end
@@ -212,34 +244,29 @@ def do_remove_empty_bars(encoding):
     return encoding
 
 
-def fix_remi_token_list(token_list):
+def fix_remigen_token_list(token_list):
     token_list = token_list[:]
-    bar_idx = 0
-    for idx, token in enumerate(token_list):
-        if token[0] == const.BAR_ABBR:
-            token_list[idx] = (const.BAR_ABBR, bar_idx)
-            bar_idx += 1
     return token_list
 
 
-def generate_midi_obj_from_remi_token_list(token_list,
-                                           vocab_manager,
-                                           ticks_per_beat=const.DEFAULT_TICKS_PER_BEAT,
-                                           ts=const.DEFAULT_TS,
-                                           tempo=const.DEFAULT_TEMPO,
-                                           inst_id=const.DEFAULT_INST_ID,
-                                           velocity=const.DEFAULT_VELOCITY,
-                                           ):  # Todo: 增加TS
+def generate_midi_obj_from_remigen_token_list(token_list,
+                                              vocab_manager,
+                                              ticks_per_beat=const.DEFAULT_TICKS_PER_BEAT,
+                                              ts=const.DEFAULT_TS,
+                                              tempo=const.DEFAULT_TEMPO,
+                                              inst_id=const.DEFAULT_INST_ID,
+                                              velocity=const.DEFAULT_VELOCITY,
+                                              ):  # Todo: 增加TS
     # Bar, Pos, Pitch, Duration
 
     beat_note_factor = vocab_manager.beat_note_factor
     pos_resolution = vocab_manager.pos_resolution
 
-    cur_bar_id = None
+    cur_bar_id = 0
     cur_ts_id = None
     cur_local_pos = None
     cur_ts_pos_per_bar = beat_note_factor * pos_resolution * ts[0] // ts[1]
-    cur_global_bar_pos = None
+    cur_global_bar_pos = 0
     cur_global_pos = None
 
     cur_pitch = None
@@ -264,14 +291,10 @@ def generate_midi_obj_from_remi_token_list(token_list,
             print(item)
             raise
         if item_type == const.BAR_ABBR:
-            if cur_bar_id != item_value:
-                cur_bar_id = item_value
-                cur_local_pos = None
-                if cur_global_bar_pos is None:
-                    cur_global_bar_pos = 0
-                else:
-                    cur_global_bar_pos += cur_ts_pos_per_bar
-                cur_global_pos = cur_global_bar_pos
+            cur_bar_id += 1
+            cur_local_pos = None
+            cur_global_bar_pos += cur_ts_pos_per_bar
+            cur_global_pos = cur_global_bar_pos
         elif item_type == const.TS_ABBR:
             if cur_ts_id != item_value:
                 cur_ts_id = item_value
@@ -293,7 +316,7 @@ def generate_midi_obj_from_remi_token_list(token_list,
                 cur_tempo = vocab_manager.convert_id_to_tempo(cur_tempo_id)
                 midi_obj.tempo_changes.append(
                     miditoolkit.containers.TempoChange(cur_tempo,
-                                                       time=vocab_manager.pos_to_time(cur_global_bar_pos,
+                                                       time=vocab_manager.pos_to_time(cur_global_pos,
                                                                                       ticks_per_beat,
                                                                                       pos_resolution=pos_resolution))
                 )

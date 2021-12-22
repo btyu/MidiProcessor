@@ -165,4 +165,4 @@ class VocabManager:
     def pos_to_time(self, pos, ticks_per_beat, pos_resolution=None):
         if pos_resolution is None:
             pos_resolution = self.pos_resolution
-        return pos * ticks_per_beat // self.pos_resolution
+        return round(pos * ticks_per_beat / pos_resolution)

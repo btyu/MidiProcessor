@@ -1,6 +1,7 @@
 # Author: Botao Yu
 
 from .version import __version__
+from .const import ENCODINGS
 
 from .midi_encoding import MidiEncoder
 from .midi_decoding import MidiDecoder
