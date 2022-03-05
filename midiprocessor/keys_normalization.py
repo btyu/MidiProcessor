@@ -39,6 +39,7 @@ def get_pitch_class_histogram(notes, normalize=True, use_duration=True, use_velo
 def get_pitch_shift(pos_info, key_profile, normalize=True, use_duration=True, use_velocity=True,
                     ensure_valid_range=True):
     notes, min_pitch, max_pitch = get_notes_from_pos_info(pos_info)
+    assert min_pitch >= 0 and max_pitch < 128
     if len(notes) == 0:
         return 0, None, None
     histogram = None
@@ -92,7 +93,10 @@ def get_pitch_shift(pos_info, key_profile, normalize=True, use_duration=True, us
             pitch_shift += 12
         while pitch_shift + max_pitch >= 128:
             pitch_shift -= 12
-        assert pitch_shift + min_pitch >= 0, \
-            "Pitch value range (%d, %d) is too large to make the values valid after pitch shift."
+        try:
+            assert pitch_shift + min_pitch >= 0, \
+                "Pitch value range (%d, %d) is too large to make the values valid after pitch shift."
+        except AssertionError:
+            pitch_shift = 0
 
     return pitch_shift, min_pitch, max_pitch

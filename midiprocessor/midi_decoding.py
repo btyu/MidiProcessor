@@ -72,10 +72,12 @@ class MidiDecoder:
         """
         if self.encoding_method == 'REMI':
             return enc_remi_utils.convert_remi_token_str_list_to_token_list(token_str_list)
+        elif self.encoding_method == 'REMIGEN':
+            return enc_remigen_utils.convert_remigen_token_str_list_to_token_list(token_str_list)
         elif self.encoding_method == 'TS1':
             return enc_ts1_utils.convert_ts1_token_str_list_to_token_list(token_str_list)
         else:
-            raise ValueError("convert_token_str_list_to_token_list method is not implemented for encoding method %d"
+            raise ValueError("convert_token_str_list_to_token_list method is not implemented for encoding method %s"
                              % self.encoding_method)
 
     def decode_file(self,

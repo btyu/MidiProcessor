@@ -21,12 +21,18 @@ class MidiEncoder(object):
     def __init__(self,
                  encoding_method,
                  key_profile_file=None,
+                 ignore_insts=False,
+                 ignore_ts=False,
+                 only_one_ts_at_beginning=False,
                  ):
         # ===== Check =====
         MidiEncoder.check_encoding_method(encoding_method)
 
         # ===== Authorized =====
         self.encoding_method = encoding_method
+        self.ignore_insts = ignore_insts
+        self.ignore_ts = ignore_ts
+        self.only_one_ts_at_beginning = only_one_ts_at_beginning
 
         self.vm = VocabManager()
 
@@ -77,7 +83,7 @@ class MidiEncoder(object):
     def time_to_pos(self, *args, **kwargs):
         return self.vm.time_to_pos(*args, **kwargs)
 
-    def collect_pos_info(self, midi_obj, trunc_pos=None, tracks=None):
+    def collect_pos_info(self, midi_obj, trunc_pos=None, tracks=None, remove_same_notes=True):
         if tracks is not None:
             from collections.abc import Iterable
             assert isinstance(tracks, (int, Iterable))
@@ -118,6 +124,8 @@ class MidiEncoder(object):
                 zero_pos_ts_change = True
             ts_numerator = ts_change.numerator
             ts_denominator = ts_change.denominator
+            if self.ignore_ts:
+                assert (ts_numerator, ts_denominator) == const.DEFAULT_TS
             ts_numerator, ts_denominator = self.vm.reduce_time_signature(ts_numerator, ts_denominator)
             pos_info[pos][1] = (ts_numerator, ts_denominator)
         if not zero_pos_ts_change:
@@ -139,7 +147,10 @@ class MidiEncoder(object):
         for inst_idx, inst in enumerate(insts):
             if tracks is not None and inst_idx not in tracks:
                 continue
-            inst_id = 128 if inst.is_drum else inst.program
+            if self.ignore_insts:
+                inst_id = 0
+            else:
+                inst_id = 128 if inst.is_drum else inst.program
             notes = inst.notes
             for note in notes:
                 pitch = note.pitch
@@ -155,6 +166,10 @@ class MidiEncoder(object):
                     pos_info[pos_start][4] = dict()
                 if inst_id not in pos_info[pos_start][4]:
                     pos_info[pos_start][4][inst_id] = []
+                note_info = [pitch, duration, velocity]
+                if remove_same_notes:
+                    if note_info in pos_info[pos_start][4][inst_id]:
+                        continue
                 pos_info[pos_start][4][inst_id].append([pitch, duration, velocity])
 
         cnt = 0
@@ -250,6 +265,9 @@ class MidiEncoder(object):
                 max_bar_num=self.vm.max_bar_num,
                 remove_bar_idx=remove_bar_idx,
                 remove_empty_bars=remove_empty_bars,
+                ignore_insts=self.ignore_insts,
+                ignore_ts=self.ignore_ts,
+                only_one_ts_at_beginning=self.only_one_ts_at_beginning
             )
         elif encoding_method == 'TS1':
             token_lists = enc_ts1_utils.convert_pos_info_to_ts1_token_lists(
@@ -291,7 +309,7 @@ class MidiEncoder(object):
             if insts_notes is None:
                 continue
             for inst_id in insts_notes:
-                if inst_id == 128:
+                if inst_id >= 128:
                     continue
                 inst_notes = insts_notes[inst_id]
                 for note_idx, (pitch, duration, velocity) in enumerate(inst_notes):
@@ -572,6 +590,8 @@ class MidiEncoder(object):
             return enc_remi_utils.convert_remi_token_lists_to_token_str_lists(token_lists)
         elif encoding_method == 'TS1':
             return enc_ts1_utils.convert_ts1_token_lists_to_token_str_lists(token_lists)
+        elif encoding_method == 'REMIGEN':
+            return enc_remigen_utils.convert_remigen_token_lists_to_token_str_lists(token_lists)
         else:
             MidiEncoder.__raise_encoding_method_error(encoding_method)
 

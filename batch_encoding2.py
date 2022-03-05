@@ -39,7 +39,10 @@ def main():
     # ToDo: processor的构造函数args分离
     parser = argparse.ArgumentParser()
     parser.add_argument('midi_dir', type=str, default='midi')
-    parser.add_argument('--encoding_method', choices=['REMI', 'TS1'])
+    parser.add_argument('--encoding_method', choices=['REMI', 'REMIGEN', 'TS1'])
+    parser.add_argument('--ignore_insts', action='store_true')
+    parser.add_argument('--ignore_ts', action='store_true')
+    parser.add_argument('--only_one_ts_at_beginning', action='store_true')
     parser.add_argument('--file_list', type=str, default=None)
     parser.add_argument('--only_mid', action='store_true')
     parser.add_argument('--output_one_file', action='store_true')
@@ -107,6 +110,9 @@ def main():
         lock = None
 
     encoder = MidiEncoder(encoding_method=args.encoding_method,
+                          ignore_insts=args.ignore_insts,
+                          ignore_ts=args.ignore_ts,
+                          only_one_ts_at_beginning=args.only_one_ts_at_beginning,
                           key_profile_file=args.key_profile_file, )
     skip_error = not args.no_skip_error
 

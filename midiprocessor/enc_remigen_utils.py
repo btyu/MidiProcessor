@@ -58,10 +58,16 @@ def convert_pos_info_to_remigen_token_lists(pos_info_id,
                                             max_bar_num=None,
                                             remove_bar_idx=False,
                                             remove_empty_bars=False,
+
+                                            ignore_insts=False,
+                                            ignore_ts=False,
+                                            only_one_ts_at_beginning=False
                                             ):
     # bar, ts, pos, pitch, duration
 
     encoding = []
+
+    one_ts = None
 
     max_pos = len(pos_info_id)
     cur_bar = None
@@ -86,7 +92,14 @@ def convert_pos_info_to_remigen_token_lists(pos_info_id,
                 cur_ts = now_ts
                 assert cur_ts is not None
 
-            encoding.append((const.TS_ABBR, cur_ts))  # ts
+                if only_one_ts_at_beginning:
+                    if one_ts is None:
+                        one_ts = cur_ts
+                    else:
+                        assert one_ts == cur_ts
+
+            if not ignore_ts and not only_one_ts_at_beginning:
+                encoding.append((const.TS_ABBR, cur_ts))  # ts
 
         add_pos = False
         if now_insts_notes is not None:
@@ -108,18 +121,32 @@ def convert_pos_info_to_remigen_token_lists(pos_info_id,
                         return INST_TYPE_MAPPING[r], x
                 raise ValueError(x)
             insts_ids = sorted(list(cur_insts_notes.keys()), key=get_type_group_id)
-            for inst_id in insts_ids:
-                encoding.append((const.INST_ABBR, inst_id))  # inst
-                inst_notes = sorted(cur_insts_notes[inst_id])
+
+            if ignore_insts:
+                inst_notes = []
+                for inst_id in insts_ids:
+                    inst_notes.extend(cur_insts_notes[inst_id])
+                inst_notes = sorted(inst_notes)
                 for pitch, duration, velocity in inst_notes:
                     encoding.append((const.PITCH_ABBR, pitch))  # pitch
                     encoding.append((const.DURATION_ABBR, duration))  # duration
                     encoding.append((const.VELOCITY_ABBR, velocity))  # velocity
+            else:
+                for inst_id in insts_ids:
+                    encoding.append((const.INST_ABBR, inst_id))  # inst
+                    inst_notes = sorted(cur_insts_notes[inst_id])
+                    for pitch, duration, velocity in inst_notes:
+                        encoding.append((const.PITCH_ABBR, pitch))  # pitch
+                        encoding.append((const.DURATION_ABBR, duration))  # duration
+                        encoding.append((const.VELOCITY_ABBR, velocity))  # velocity
 
     encoding.append((const.BAR_ABBR, 1))  # bar
 
     if remove_empty_bars:
-        encoding = do_remove_empty_bars(encoding)
+        encoding = do_remove_empty_bars(encoding, ignore_ts=ignore_ts or only_one_ts_at_beginning)
+
+    if only_one_ts_at_beginning:
+        encoding.insert(0, (const.TS_ABBR, cur_ts))
 
     token_lists = cut_remi_full_token_list(encoding,
                                            max_encoding_length=max_encoding_length,
@@ -217,13 +244,13 @@ def cut_remi_full_token_list(encoding,
     return encodings
 
 
-def do_remove_empty_bars(encoding):
+def do_remove_empty_bars(encoding, ignore_ts=False):
     len_encoding = len(encoding)
     valid_start = None
     valid_end = len_encoding
     for idx in range(len_encoding):
         tag_abbr = encoding[idx][0]
-        if tag_abbr == const.TS_ABBR:
+        if tag_abbr == (const.POS_ABBR if ignore_ts else const.TS_ABBR):
             valid_start = idx
         elif tag_abbr in (const.POS_ABBR, const.TEMPO_ABBR, const.INST_ABBR,
                           const.PITCH_ABBR, const.DURATION_ABBR, const.VELOCITY_ABBR):
@@ -238,6 +265,8 @@ def do_remove_empty_bars(encoding):
 
     assert valid_start is not None
     assert valid_start < valid_end
+    # print(valid_start, valid_end)
+    # input()
 
     encoding = encoding[valid_start: valid_end]
 
