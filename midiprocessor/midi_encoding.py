@@ -157,10 +157,10 @@ class MidiEncoder(object):
                 velocity = note.velocity
                 start_time = note.start
                 end_time = note.end
+                assert end_time > start_time
                 pos_start = self.time_to_pos(start_time, midi_obj.ticks_per_beat)
                 pos_end = self.time_to_pos(end_time, midi_obj.ticks_per_beat)
                 duration = pos_end - pos_start
-                duration = max(1, duration)
 
                 if pos_info[pos_start][4] is None:
                     pos_info[pos_start][4] = dict()

@@ -68,6 +68,7 @@ def convert_pos_info_to_remigen_token_lists(pos_info_id,
     encoding = []
 
     one_ts = None
+    start_to_have_note = False
 
     max_pos = len(pos_info_id)
     cur_bar = None
@@ -96,7 +97,8 @@ def convert_pos_info_to_remigen_token_lists(pos_info_id,
                     if one_ts is None:
                         one_ts = cur_ts
                     else:
-                        assert one_ts == cur_ts
+                        if start_to_have_note and not remove_empty_bars:
+                            assert one_ts == cur_ts, (one_ts, cur_ts)
 
             if not ignore_ts and not only_one_ts_at_beginning:
                 encoding.append((const.TS_ABBR, cur_ts))  # ts
@@ -252,13 +254,13 @@ def do_remove_empty_bars(encoding, ignore_ts=False):
         tag_abbr = encoding[idx][0]
         if tag_abbr == (const.POS_ABBR if ignore_ts else const.TS_ABBR):
             valid_start = idx
-        elif tag_abbr in (const.POS_ABBR, const.TEMPO_ABBR, const.INST_ABBR,
+        elif tag_abbr in (const.INST_ABBR,
                           const.PITCH_ABBR, const.DURATION_ABBR, const.VELOCITY_ABBR):
             break
     for idx in range(len_encoding - 1, -1, -1):
         tag_abbr = encoding[idx][0]
         if tag_abbr in (const.VELOCITY_ABBR, const.DURATION_ABBR, const.PITCH_ABBR,
-                        const.INST_ABBR, const.TEMPO_ABBR, const.POS_ABBR):
+                        const.INST_ABBR):
             break
         elif tag_abbr == const.BAR_ABBR:
             valid_end = idx + 1
