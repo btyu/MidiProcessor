@@ -101,13 +101,21 @@ def dump_lists(lists, file_path, no_internal_blanks=False, open_mode='w'):
                 f.write('\n')
 
 
-def get_file_paths(data_dir, file_list=None, suffix=None):
+def get_file_paths(data_dir, file_list=None, suffixes=None):
+    if suffixes is not None and isinstance(suffixes, str):
+        suffixes = (suffixes,)
     file_path_list = []
     if file_list is None:
         for root_dir, dirs, files in os.walk(data_dir):
             for file_name in files:
-                if suffix is not None and not file_name.endswith(suffix):
-                    continue
+                if suffixes is not None and len(suffixes) > 0:
+                    not_in = True
+                    for suffix in suffixes:
+                        if file_name.endswith(suffix):
+                            not_in = False
+                            break
+                    if not_in:
+                        continue
                 file_path = os.path.join(root_dir, file_name)
                 file_path_list.append(file_path)
     else:
@@ -118,8 +126,14 @@ def get_file_paths(data_dir, file_list=None, suffix=None):
             else:
                 file_list = load_list(file_list)
         for file_name in file_list:
-            if suffix is not None and not file_name.endswith(suffix):
-                continue
+            if suffixes is not None and len(suffixes) > 0:
+                not_in = True
+                for suffix in suffixes:
+                    if file_name.endswith(suffix):
+                        not_in = False
+                        break
+                if not_in:
+                    continue
             file_path = os.path.join(data_dir, file_name)
             file_path_list.append(file_path)
     return file_path_list

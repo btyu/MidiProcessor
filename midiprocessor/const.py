@@ -16,7 +16,7 @@ FAMILY_ABBR = 'f'
 SPECIAL_ABBR = 'e'
 
 # === Encoding ===
-ENCODINGS = ('REMI', 'REMIGEN', 'TS1', 'TG1')
+ENCODINGS = ('REMI', 'REMIGEN', 'TS1', 'TG1', 'STACKED')
 # REMI: REMI
 # TS1: 只编码Bar(no idx)、position、duration、pitch信息
 # TG1: Compound format for generation. f, t, o, i, v, d, c, n, b

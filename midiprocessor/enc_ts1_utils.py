@@ -18,7 +18,7 @@ def convert_ts1_token_list_to_token_str_list(token_list):
 
 
 def convert_ts1_token_lists_to_token_str_lists(token_lists):
-    return enc_basic_utils.convert_basic_token_lists_to_token_str_lists(token_lists)
+    return enc_basic_utils.convert_token_lists_to_token_str_lists(token_lists)
 
 
 def convert_ts1_token_str_to_token(token_str):

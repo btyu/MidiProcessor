@@ -37,7 +37,7 @@ def convert_remigen_token_list_to_token_str_list(token_list):
 
 
 def convert_remigen_token_lists_to_token_str_lists(token_lists):
-    return enc_basic_utils.convert_basic_token_lists_to_token_str_lists(token_lists)
+    return enc_basic_utils.convert_token_lists_to_token_str_lists(token_lists)
 
 
 def convert_remigen_token_str_to_token(token_str):
@@ -357,7 +357,6 @@ def generate_midi_obj_from_remigen_token_list(token_list,
             cur_pitch = vocab_manager.convert_id_to_pitch(item_value)
         elif item_type == const.DURATION_ABBR:
             cur_duration = vocab_manager.convert_id_to_dur(item_value)
-            cur_duration = max(cur_duration, 1)
         elif item_type == const.VELOCITY_ABBR:
             cur_velocity = vocab_manager.convert_id_to_vel(item_value)
 

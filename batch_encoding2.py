@@ -87,7 +87,7 @@ def main():
                                                        suffix='.mid' if args.only_mid else None)
     else:
         file_path_list = data_utils.get_file_paths(args.midi_dir, file_list=args.file_list,
-                                                   suffix='.mid' if args.only_mid else None)
+                                                   suffixes='.mid' if args.only_mid else None)
     num_files = len(file_path_list)
     print('Processing %d files...' % num_files)
 

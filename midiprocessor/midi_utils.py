@@ -11,7 +11,7 @@ def load_midi(file_path=None, file=None, midi_checker='default'):
     """
     midi_obj = miditoolkit.midi.parser.MidiFile(filename=file_path, file=file)
 
-    if midi_checker is not None:
+    if midi_checker is not None and midi_checker != 'none':
         if isinstance(midi_checker, str):
             if midi_checker == 'default':
                 midi_checker = default_check_midi

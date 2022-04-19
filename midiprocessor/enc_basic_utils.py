@@ -12,7 +12,7 @@ def convert_basic_token_list_to_token_str_list(token_list):
     return [convert_basic_token_to_token_str(token) for token in token_list]
 
 
-def convert_basic_token_lists_to_token_str_lists(token_lists):
+def convert_token_lists_to_token_str_lists(token_lists):
     str_lists = []
 
     for token_list in token_lists:

@@ -14,32 +14,39 @@ from . import enc_tg1_utils
 from . import keys_normalization
 
 
-file_dir = os.path.dirname(__file__)
+def raise_encoding_method_error(encoding_method):
+    raise ValueError("Encoding method %s is not supported." % encoding_method)
+
+
+def check_encoding_method(encoding_method):
+    assert encoding_method in const.ENCODINGS, "Encoding method %s not in the supported: %s" % \
+                                               (encoding_method, ', '.join(const.ENCODINGS))
 
 
 class MidiEncoder(object):
     def __init__(self,
                  encoding_method,
-                 key_profile_file=None,
+                 normalize_pitch_value=False,
+                 remove_empty_bars=True,
                  ignore_insts=False,
                  ignore_ts=False,
                  only_one_ts_at_beginning=False,
                  ):
         # ===== Check =====
-        MidiEncoder.check_encoding_method(encoding_method)
+        check_encoding_method(encoding_method)
 
         # ===== Authorized =====
         self.encoding_method = encoding_method
+        self.normalize_pitch_value = normalize_pitch_value
+        self.remove_empty_bars=remove_empty_bars
         self.ignore_insts = ignore_insts
         self.ignore_ts = ignore_ts
         self.only_one_ts_at_beginning = only_one_ts_at_beginning
 
         self.vm = VocabManager()
 
-        self.key_profile = None
-        if key_profile_file is None:
-            key_profile_file = os.path.join(file_dir, const.KEY_PROFILE)
-        self.load_key_profile(key_profile_file)
+        with open(os.path.join(os.path.dirname(__file__), const.KEY_PROFILE), 'rb') as f:
+            self.key_profile = pickle.load(f)
 
         # ===== Unauthorized =====
         # self.deduplicate = True
@@ -49,41 +56,11 @@ class MidiEncoder(object):
         # self.sample_overlap_rate = 4
         # self.ts_filter = False
 
-    # ==== Key Profile =====
-    def load_key_profile(self, key_profile_file):
-        with open(key_profile_file, 'rb') as f:
-            self.key_profile = pickle.load(f)
-
-    # ===== Encoding Method =====
-    # Finished
-    @staticmethod
-    def check_encoding_method(encoding_method):
-        assert encoding_method in const.ENCODINGS, "Encoding method %s not in the supported: %s" % \
-                                                   (encoding_method, ', '.join(const.ENCODINGS))
-
-    # Finished
-    def get_encoding_method(self, encoding_method=None):
-        """
-        供各方法调用的获取encoding_method的方法
-        :param encoding_method:
-        :return:
-        """
-        if encoding_method is None:
-            encoding_method = self.encoding_method
-        else:
-            MidiEncoder.check_encoding_method(encoding_method)
-        return encoding_method
-
-    # Finished
-    @staticmethod
-    def __raise_encoding_method_error(encoding_method):
-        raise ValueError("Encoding method %s is not supported." % encoding_method)
-
     # ===== Basic Functions ===
     def time_to_pos(self, *args, **kwargs):
         return self.vm.time_to_pos(*args, **kwargs)
 
-    def collect_pos_info(self, midi_obj, trunc_pos=None, tracks=None, remove_same_notes=True):
+    def collect_pos_info(self, midi_obj, trunc_pos=None, tracks=None, remove_same_notes=False):
         if tracks is not None:
             from collections.abc import Iterable
             assert isinstance(tracks, (int, Iterable))
@@ -219,34 +196,31 @@ class MidiEncoder(object):
                         inst_note[2] = velocity_id
         return pos_info_id
 
-    def encode_file(self,
-                    file_path,
-
-                    max_encoding_length=None,
-                    max_bar=None,
-                    trunc_pos=None,
-
-                    cut_method='successive',
-                    remove_bar_idx=False,
-                    normalize_keys=False,
-                    remove_empty_bars=False,
-                    tracks=None,
-                    save_path=None,
-                    midi_obj=None):
+    def encode_file(
+        self,
+        file_path,
+        midi_checker='default',
+        midi_obj=None,
+        trunc_pos=None,
+        tracks=None,
+        save_path=None,
+        **kwargs
+    ):
         encoding_method = self.encoding_method
 
         if midi_obj is None:
-            midi_obj = midi_utils.load_midi(file_path)
+            midi_obj = midi_utils.load_midi(file_path, midi_checker=midi_checker)
 
         pos_info = self.collect_pos_info(midi_obj, trunc_pos=trunc_pos, tracks=tracks)
 
-        if normalize_keys:
+        if self.normalize_pitch_value:
             pos_info = self.normalize_pitch(pos_info)
 
         pos_info_id = self.convert_pos_info_to_pos_info_id(pos_info)
 
         token_lists = None
         if encoding_method == 'REMI':  # Todo: REMI encoding参考原版重写
+            raise NotImplementedError
             token_lists = enc_remi_utils.convert_pos_info_to_remi_token_lists(
                 pos_info_id,
                 max_encoding_length=max_encoding_length,
@@ -257,19 +231,24 @@ class MidiEncoder(object):
                 remove_empty_bars=remove_empty_bars,
             )
         elif encoding_method == 'REMIGEN':
+            raise NotImplementedError
             token_lists = enc_remigen_utils.convert_pos_info_to_remigen_token_lists(
                 pos_info_id,
-                max_encoding_length=max_encoding_length,
-                max_bar=max_bar,
-                cut_method=cut_method,
                 max_bar_num=self.vm.max_bar_num,
-                remove_bar_idx=remove_bar_idx,
-                remove_empty_bars=remove_empty_bars,
                 ignore_insts=self.ignore_insts,
                 ignore_ts=self.ignore_ts,
-                only_one_ts_at_beginning=self.only_one_ts_at_beginning
+                only_one_ts_at_beginning=self.only_one_ts_at_beginning,
+                **kwargs
+            )
+        elif encoding_method == 'STACKED':
+            from . import enc_stacked_utils
+            token_lists = enc_stacked_utils.convert_pos_info_id_to_token_lists(
+                pos_info_id,
+                remove_empty_bars=self.remove_empty_bars,
+                **kwargs
             )
         elif encoding_method == 'TS1':
+            raise NotImplementedError
             token_lists = enc_ts1_utils.convert_pos_info_to_ts1_token_lists(
                 pos_info_id,
                 max_encoding_length=max_encoding_length,
@@ -280,6 +259,7 @@ class MidiEncoder(object):
                 remove_empty_bars=remove_empty_bars,
             )
         elif encoding_method == 'TG1':
+            raise NotImplementedError
             token_lists = enc_tg1_utils.convert_pos_info_to_tg1_token_lists(
                 pos_info_id,
                 max_encoding_length=max_encoding_length,
@@ -290,11 +270,11 @@ class MidiEncoder(object):
                 remove_empty_bars=remove_empty_bars,
             )
         else:
-            MidiEncoder.__raise_encoding_method_error(encoding_method)
+            raise_encoding_method_error(encoding_method)
 
         if save_path is not None:
             try:
-                self.dump_token_lists(token_lists, save_path)
+                self.dump_token_lists(token_lists, save_path, no_internal_blanks=True)
             except IOError:
                 print("Wrong! Saving failed: \nMIDI: %s\nSave Path: %s" % file_path, save_path)
 
@@ -578,30 +558,33 @@ class MidiEncoder(object):
 
     # Finished
     # encoding_method check
-    def convert_token_lists_to_token_str_lists(self, token_lists, encoding_method=None):
+    def convert_token_lists_to_token_str_lists(self, token_lists):
         """
         将一个文件的encoding token_lists（二层列表）转换为str lists
         :param token_lists:
         :param encoding_method:
         :return:
         """
-        encoding_method = self.get_encoding_method(encoding_method)
+        encoding_method = self.encoding_method
         if encoding_method == 'REMI':
             return enc_remi_utils.convert_remi_token_lists_to_token_str_lists(token_lists)
         elif encoding_method == 'TS1':
             return enc_ts1_utils.convert_ts1_token_lists_to_token_str_lists(token_lists)
         elif encoding_method == 'REMIGEN':
             return enc_remigen_utils.convert_remigen_token_lists_to_token_str_lists(token_lists)
+        elif encoding_method == 'STACKED':
+            from . import enc_stacked_utils
+            return enc_stacked_utils.convert_token_lists_to_token_str_lists(token_lists)
         else:
-            MidiEncoder.__raise_encoding_method_error(encoding_method)
+            raise_encoding_method_error(encoding_method)
 
     # Finished
-    def dump_token_lists(self, token_lists, file_path):
+    def dump_token_lists(self, token_lists, file_path, **kwargs):
         """
         将一个文件的encoding token_lists转换成str并存为文件
         :param token_lists:
         :param file_path:
         :return:
         """
-        token_str_lists = self.convert_token_lists_to_token_str_lists(token_lists, encoding_method=self.encoding_method)
-        data_utils.dump_lists(token_str_lists, file_path)
+        token_str_lists = self.convert_token_lists_to_token_str_lists(token_lists)
+        data_utils.dump_lists(token_str_lists, file_path, **kwargs)

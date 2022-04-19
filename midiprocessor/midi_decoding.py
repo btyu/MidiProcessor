@@ -20,6 +20,8 @@ class MidiDecoder:
 
         self.vm = VocabManager()
 
+        raise NotImplementedError("MidiDecoder needs rechecking before available.")
+
     # === Vocab Properties ===
     @property
     def pos_resolution(self):
