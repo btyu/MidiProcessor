@@ -27,10 +27,6 @@ class MidiEncoder(object):
     def __init__(self,
                  encoding_method,
                  normalize_pitch_value=False,
-                 remove_empty_bars=True,
-                 ignore_insts=False,
-                 ignore_ts=False,
-                 only_one_ts_at_beginning=False,
                  ):
         # ===== Check =====
         check_encoding_method(encoding_method)
@@ -38,11 +34,6 @@ class MidiEncoder(object):
         # ===== Authorized =====
         self.encoding_method = encoding_method
         self.normalize_pitch_value = normalize_pitch_value
-        self.remove_empty_bars=remove_empty_bars
-        self.ignore_insts = ignore_insts
-        self.ignore_ts = ignore_ts
-        self.only_one_ts_at_beginning = only_one_ts_at_beginning
-
         self.vm = VocabManager()
 
         with open(os.path.join(os.path.dirname(__file__), const.KEY_PROFILE), 'rb') as f:
@@ -101,8 +92,8 @@ class MidiEncoder(object):
                 zero_pos_ts_change = True
             ts_numerator = ts_change.numerator
             ts_denominator = ts_change.denominator
-            if self.ignore_ts:
-                assert (ts_numerator, ts_denominator) == const.DEFAULT_TS
+            # if self.ignore_ts:
+            #     assert (ts_numerator, ts_denominator) == const.DEFAULT_TS
             ts_numerator, ts_denominator = self.vm.reduce_time_signature(ts_numerator, ts_denominator)
             pos_info[pos][1] = (ts_numerator, ts_denominator)
         if not zero_pos_ts_change:
@@ -124,10 +115,10 @@ class MidiEncoder(object):
         for inst_idx, inst in enumerate(insts):
             if tracks is not None and inst_idx not in tracks:
                 continue
-            if self.ignore_insts:
-                inst_id = 0
-            else:
-                inst_id = 128 if inst.is_drum else inst.program
+            # if self.ignore_insts:
+            #     inst_id = 0
+            # else:
+            inst_id = 128 if inst.is_drum else inst.program
             notes = inst.notes
             for note in notes:
                 pitch = note.pitch
@@ -244,7 +235,12 @@ class MidiEncoder(object):
             from . import enc_stacked_utils
             token_lists = enc_stacked_utils.convert_pos_info_id_to_token_lists(
                 pos_info_id,
-                remove_empty_bars=self.remove_empty_bars,
+                **kwargs
+            )
+        elif encoding_method == 'CP2':
+            from . import enc_cp2_utils
+            token_lists = enc_cp2_utils.convert_pos_info_id_to_token_lists(
+                pos_info_id,
                 **kwargs
             )
         elif encoding_method == 'TS1':
@@ -575,6 +571,9 @@ class MidiEncoder(object):
         elif encoding_method == 'STACKED':
             from . import enc_stacked_utils
             return enc_stacked_utils.convert_token_lists_to_token_str_lists(token_lists)
+        elif encoding_method == 'CP2':
+            from . import enc_cp2_utils
+            return enc_cp2_utils.convert_token_lists_to_token_str_lists(token_lists)
         else:
             raise_encoding_method_error(encoding_method)
 
