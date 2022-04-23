@@ -1,1 +1,0 @@
-python batch_encoding2.py ../../data/LMD/lmd_full --file_list ../../data/LMD/main_melody_info/lmd_full_midi_paths.txt --only_mid --output_dir ../../processed_data/lmd_full/remigen.lmd_full.standalone.reb.normalized.tokenization --output_suffix .txt --num_workers 8 --remove_empty_bars --normalize_keys  --key_profile_file midiprocessor/key_profile.pickle --encoding_method REMIGEN

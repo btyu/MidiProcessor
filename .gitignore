@@ -136,4 +136,6 @@ files/
 *.mid
 *.midi
 
-group_result.bin
+./*.txt
+
+playground/

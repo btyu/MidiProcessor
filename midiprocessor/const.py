@@ -15,15 +15,6 @@ PITCH_OCTAVE_ABBR = 'c'
 FAMILY_ABBR = 'f'
 SPECIAL_ABBR = 'e'
 
-# === Encoding ===
-ENCODINGS = ('REMI', 'REMIGEN', 'TS1', 'TG1', 'STACKED', 'CP2')
-# REMI: REMI
-# TS1: 只编码Bar(no idx)、position、duration、pitch信息
-# TG1: Compound format for generation. f, t, o, i, v, d, c, n, b
-
-# === Cut Methods ===
-CUT_METHODS = ('successive', 'first')
-
 # === Defaults ===
 DEFAULT_TICKS_PER_BEAT = 480
 DEFAULT_TS = (4, 4)

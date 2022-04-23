@@ -7,11 +7,10 @@ from copy import deepcopy
 from . import const
 from .vocab_manager import VocabManager
 from . import data_utils
-from . import enc_remi_utils
-from . import enc_remigen_utils
-from . import enc_ts1_utils
-from . import enc_tg1_utils
 from . import keys_normalization
+
+
+ENCODINGS = ('REMI', 'REMIGEN', 'STACKED', 'CP2')
 
 
 def raise_encoding_method_error(encoding_method):
@@ -19,8 +18,8 @@ def raise_encoding_method_error(encoding_method):
 
 
 def check_encoding_method(encoding_method):
-    assert encoding_method in const.ENCODINGS, "Encoding method %s not in the supported: %s" % \
-                                               (encoding_method, ', '.join(const.ENCODINGS))
+    assert encoding_method in ENCODINGS, "Encoding method %s not in the supported: %s" % \
+                                               (encoding_method, ', '.join(ENCODINGS))
 
 
 class MidiEncoder(object):
@@ -38,14 +37,6 @@ class MidiEncoder(object):
 
         with open(os.path.join(os.path.dirname(__file__), const.KEY_PROFILE), 'rb') as f:
             self.key_profile = pickle.load(f)
-
-        # ===== Unauthorized =====
-        # self.deduplicate = True
-        # self.filter_symbolic = False
-        # self.filter_symbolic_ppl = 16
-        # self.sample_len_max = 1000  # window length max
-        # self.sample_overlap_rate = 4
-        # self.ts_filter = False
 
     # ===== Basic Functions ===
     def time_to_pos(self, *args, **kwargs):
@@ -211,24 +202,16 @@ class MidiEncoder(object):
 
         token_lists = None
         if encoding_method == 'REMI':  # Todo: REMI encoding参考原版重写
-            raise NotImplementedError
+            from . import enc_remi_utils
             token_lists = enc_remi_utils.convert_pos_info_to_remi_token_lists(
                 pos_info_id,
-                max_encoding_length=max_encoding_length,
-                max_bar=max_bar,
-                cut_method=cut_method,
-                max_bar_num=self.vm.max_bar_num,
-                remove_bar_idx=remove_bar_idx,
-                remove_empty_bars=remove_empty_bars,
+                **kwargs
             )
+            raise NotImplementedError("Need to rewrite REMI encoding")
         elif encoding_method == 'REMIGEN':
-            raise NotImplementedError
-            token_lists = enc_remigen_utils.convert_pos_info_to_remigen_token_lists(
+            from . import enc_remigen_utils
+            token_lists = enc_remigen_utils.convert_pos_info_to_token_lists(
                 pos_info_id,
-                max_bar_num=self.vm.max_bar_num,
-                ignore_insts=self.ignore_insts,
-                ignore_ts=self.ignore_ts,
-                only_one_ts_at_beginning=self.only_one_ts_at_beginning,
                 **kwargs
             )
         elif encoding_method == 'STACKED':
@@ -242,28 +225,6 @@ class MidiEncoder(object):
             token_lists = enc_cp2_utils.convert_pos_info_id_to_token_lists(
                 pos_info_id,
                 **kwargs
-            )
-        elif encoding_method == 'TS1':
-            raise NotImplementedError
-            token_lists = enc_ts1_utils.convert_pos_info_to_ts1_token_lists(
-                pos_info_id,
-                max_encoding_length=max_encoding_length,
-                max_bar=max_bar,
-                cut_method=cut_method,
-                max_bar_num=self.vm.max_bar_num,
-                remove_bar_idx=remove_bar_idx,
-                remove_empty_bars=remove_empty_bars,
-            )
-        elif encoding_method == 'TG1':
-            raise NotImplementedError
-            token_lists = enc_tg1_utils.convert_pos_info_to_tg1_token_lists(
-                pos_info_id,
-                max_encoding_length=max_encoding_length,
-                max_bar=max_bar,
-                cut_method=cut_method,
-                max_bar_num=self.vm.max_bar_num,
-                remove_bar_idx=remove_bar_idx,
-                remove_empty_bars=remove_empty_bars,
             )
         else:
             raise_encoding_method_error(encoding_method)
@@ -293,267 +254,7 @@ class MidiEncoder(object):
                     inst_notes[note_idx][0] = pitch + pitch_shift
         return pos_info
 
-    # def pos_info_to_remi_encoding(self, pos_to_info,
-    #                               max_encoding_length=None, max_bar=None,
-    #                               cut_method='successive', ):
-    #     encoding = []
-    #
-    #     max_pos = len(pos_to_info)
-    #     cur_bar = None
-    #     cur_ts = self.convert_ts_to_id((4, 4))  # default MIDI time signature
-    #     cur_tempo = self.convert_tempo_to_id(120.0)  # default MIDI tempo (BPM)
-    #     for pos in range(max_pos):
-    #         now_bar, now_ts, now_local_pos, now_tempo, now_insts_notes = pos_to_info[pos]
-    #
-    #         cur_local_pos = now_local_pos
-    #
-    #         if now_ts is not None and now_ts != cur_ts:
-    #             cur_ts = now_ts
-    #         if now_tempo is not None and now_tempo != cur_tempo:
-    #             cur_tempo = now_tempo
-    #
-    #         if cur_bar != now_bar:
-    #             cur_bar = now_bar
-    #             encoding.append((const.BAR_ABBR, cur_bar))  # bar
-    #             encoding.append((const.TS_ABBR, cur_ts))  # ts
-    #
-    #         if now_insts_notes is not None:
-    #             cur_insts_notes = now_insts_notes
-    #             encoding.append((const.POS_ABBR, cur_local_pos))  # local pos
-    #             encoding.append((const.TEMPO_ABBR, cur_tempo))  # tempo
-    #             insts_ids = sorted(list(cur_insts_notes.keys()))
-    #             for inst_id in insts_ids:
-    #                 encoding.append((const.INST_ABBR, inst_id))
-    #                 inst_notes = sorted(cur_insts_notes[inst_id])
-    #                 for pitch, duration, velocity, pos_end in inst_notes:
-    #                     encoding.append((const.PITCH_ABBR, pitch))  # pitch
-    #                     encoding.append((const.DURATION_ABBR, duration))  # duration
-    #                     encoding.append((const.VELOCITY_ABBR, velocity))  # velocity
-    #
-    #     return self._remi_encoding_cut(encoding,
-    #                                    max_encoding_length=max_encoding_length, max_bar=max_bar,
-    #                                    cut_method=cut_method)
-    #
-    # def _remi_encoding_cut(self, remi_encoding, max_encoding_length=None, max_bar=None,
-    #                        cut_method='successive'):
-    #     len_encoding = len(remi_encoding)
-    #
-    #     direct_returns = max_encoding_length is None and max_bar is None, \
-    #                      max_encoding_length is not None and len_encoding <= max_encoding_length and max_bar is None
-    #
-    #     if any(direct_returns):
-    #         return [remi_encoding[:]]
-    #
-    #     assert cut_method in const.CUT_METHODS, "Cut method \"%s\" not in the supported: %s" % \
-    #                                                   (cut_method, ', '.join(const.CUT_METHODS))
-    #
-    #     def get_remi_bar_offset(encoding):
-    #         for idx, item in enumerate(encoding):
-    #             if item[0] == const.BAR_ABBR:
-    #                 return idx, item[1]
-    #         return None, None
-    #
-    #     authorize_right = lambda x, y: x[y][0] == const.BAR_ABBR
-    #
-    #     def authorize_bar(encoding, start, pos, offset, max_bar):
-    #         if pos < len(encoding) and encoding[pos][0] == const.BAR_ABBR:
-    #             return encoding[pos][1] - offset <= max_bar
-    #         pos -= 1
-    #         while pos >= start:
-    #             if encoding[pos][0] == const.BAR_ABBR:
-    #                 return encoding[pos][1] - offset < max_bar
-    #             pos -= 1
-    #         raise ValueError("No authorized bar in the encoding range.")
-    #
-    #     if cut_method == 'successive':
-    #         return self.__encoding_successive_cut(
-    #             remi_encoding,
-    #             max_length=max_encoding_length,
-    #             max_bar=max_bar,
-    #             get_offset=get_remi_bar_offset,
-    #             authorize_right=authorize_right,
-    #             authorize_bar=authorize_bar,
-    #             len_encoding=len_encoding,
-    #         )
-    #     elif cut_method == 'first':
-    #         return self.__encoding_successive_cut(
-    #             remi_encoding,
-    #             max_length=max_encoding_length,
-    #             max_bar=max_bar,
-    #             get_offset=get_remi_bar_offset,
-    #             authorize_right=authorize_right,
-    #             authorize_bar=authorize_bar,
-    #             len_encoding=max_encoding_length,
-    #         )
-    #     else:
-    #         raise ValueError("Cut method \"%s\" not currently supported." % cut_method)
-
-    # def __encoding_successive_cut(self, encoding, max_length=None, max_bar=None,
-    #                               get_offset=None,
-    #                               authorize_right=None,
-    #                               authorize_bar=None,
-    #                               len_encoding=None):
-    #     assert inspect.isfunction(get_offset)
-    #     assert inspect.isfunction(authorize_right)
-    #     assert inspect.isfunction(authorize_bar)
-    #     if len_encoding is None:
-    #         len_encoding = len(encoding)
-    #     if max_length is None:
-    #         max_length = len_encoding
-    #     assert max_length > 0
-    #
-    #     encodings = []
-    #
-    #     start = 0
-    #     while start < len_encoding:
-    #         end = min(start + max_length, len_encoding)
-    #         first_bar_idx, bar_offset = get_offset(encoding[start: end])
-    #         assert first_bar_idx == 0
-    #         have_bar = False
-    #         while True:
-    #             assert end > start, "No authorized right position for the cut. " + \
-    #                                 ("However, there is a bar in the range." if have_bar
-    #                                  else "And there is no bar in the range.")
-    #             if end == len_encoding or authorize_right(encoding, end):
-    #                 have_bar = True
-    #                 if max_bar is None:
-    #                     break
-    #                 else:
-    #                     if authorize_bar(encoding, start, end, bar_offset, max_bar):
-    #                         break
-    #             end -= 1
-    #         encodings.append(self.__remi_ensure_bar_num(encoding[start: end], bar_offset))
-    #         start = end
-    #
-    #     return encodings
-
-    # def __remi_ensure_bar_num(self, encoding, offset):
-    #     new_encoding = []
-    #     for item in encoding:
-    #         if item[0] == const.BAR_ABBR:
-    #             bar_idx = item[1]
-    #             bar_idx -= offset
-    #             if bar_idx >= self.max_bar_num:
-    #                 bar_idx = self.max_bar_num - 1
-    #             new_encoding.append((const.BAR_ABBR, bar_idx))
-    #         else:
-    #             new_encoding.append(item)
-    #     return new_encoding
-
-    # def remi_encoding_to_midi_obj(self, encoding,
-    #                               ticks_per_beat=480,
-    #                               pos_resolution=None,
-    #                               beat_note_factor=None,
-    #                               ):
-    #     if pos_resolution is None:
-    #         pos_resolution = self.pos_resolution
-    #     if beat_note_factor is None:
-    #         beat_note_factor = self.beat_note_factor
-    #
-    #     cur_bar_id = None
-    #     cur_ts_id = None
-    #     cur_local_pos = None
-    #     cur_ts_pos_per_bar = beat_note_factor * pos_resolution
-    #     cur_tempo_id = None
-    #     cur_global_bar_pos = None
-    #     cur_global_pos = None
-    #
-    #     cur_inst = None
-    #     cur_pitch = None
-    #     cur_duration = None
-    #     cur_velocity = None
-    #
-    #     max_tick = 0
-    #
-    #     midi_obj = miditoolkit.midi.parser.MidiFile(ticks_per_beat=ticks_per_beat)
-    #     midi_obj.instruments = [
-    #         miditoolkit.containers.Instrument(program=(0 if i == 128 else i), is_drum=(i == 128), name=str(i))
-    #         for i in range(128 + 1)
-    #     ]
-    #
-    #     for item in encoding:
-    #         try:
-    #             item_type, item_value = item
-    #         except ValueError:
-    #             print(item)
-    #             raise
-    #         if item_type == const.BAR_ABBR:
-    #             if cur_bar_id != item_value:
-    #                 cur_bar_id = item_value
-    #                 cur_local_pos = None
-    #                 if cur_global_bar_pos is None:
-    #                     cur_global_bar_pos = 0
-    #                 else:
-    #                     cur_global_bar_pos += cur_ts_pos_per_bar
-    #                 cur_global_pos = cur_global_bar_pos
-    #         elif item_type == const.TS_ABBR:
-    #             if cur_ts_id != item_value:
-    #                 cur_ts_id = item_value
-    #                 cur_ts_numerator, cur_ts_denominator = self.convert_id_to_ts(cur_ts_id)
-    #                 midi_obj.time_signature_changes.append(
-    #                     miditoolkit.containers.TimeSignature(numerator=cur_ts_numerator,
-    #                                                          denominator=cur_ts_denominator,
-    #                                                          time=self.pos_to_time(cur_global_pos,
-    #                                                                                ticks_per_beat=ticks_per_beat))
-    #                 )
-    #                 cur_ts_pos_per_bar = cur_ts_numerator * beat_note_factor * pos_resolution // cur_ts_denominator
-    #         elif item_type == const.POS_ABBR:
-    #             if cur_local_pos != item_value:
-    #                 cur_local_pos = item_value
-    #                 cur_global_pos = cur_global_bar_pos + cur_local_pos
-    #         elif item_type == const.TEMPO_ABBR:
-    #             if cur_tempo_id != item_value:
-    #                 cur_tempo_id = item_value
-    #                 cur_tempo = self.convert_id_to_tempo(cur_tempo_id)
-    #                 midi_obj.tempo_changes.append(
-    #                     miditoolkit.containers.TempoChange(tempo=cur_tempo,
-    #                                                        time=self.pos_to_time(cur_global_pos,
-    #                                                                              ticks_per_beat=ticks_per_beat))
-    #                 )
-    #         elif item_type == const.INST_ABBR:
-    #             cur_inst = midi_obj.instruments[item_value]
-    #         elif item_type == const.PITCH_ABBR:
-    #             cur_pitch = self.convert_id_to_pitch(item_value)
-    #         elif item_type == const.DURATION_ABBR:
-    #             cur_duration = self.convert_id_to_dur(item_value)
-    #         elif item_type == const.VELOCITY_ABBR:
-    #             cur_velocity = self.convert_id_to_vel(item_value)
-    #
-    #             start_pos = cur_global_pos
-    #             end_pos = start_pos + cur_duration
-    #             start_time = self.pos_to_time(start_pos, ticks_per_beat, pos_resolution=pos_resolution)
-    #             end_time = self.pos_to_time(end_pos, ticks_per_beat, pos_resolution=pos_resolution)
-    #             max_tick = max(end_time, max_tick)
-    #             cur_inst.notes.append(
-    #                 miditoolkit.containers.Note(start=start_time, end=end_time, pitch=cur_pitch, velocity=cur_velocity)
-    #             )
-    #         else:
-    #             raise ValueError("Unknown encoding type: %d" % item_type)
-    #
-    #     midi_obj.max_tick = max_tick
-    #
-    #     midi_obj.instruments = [i for i in midi_obj.instruments if len(i.notes) > 0]
-    #
-    #     return midi_obj
-
-    # def load_encoding_str(self, file_name):
-    #     with open(file_name, 'r', encoding='utf-8') as f:
-    #         line = f.readlines(1)
-    #     line = line[0]
-    #     line = line.strip()
-    #     line = line.split(' ')
-    #     encodings = []
-    #     for item in line:
-    #         try:
-    #             t, value = item.split('-')
-    #         except:
-    #             print(item)
-    #             raise
-    #         encodings.append((t, int(value)))
-    #     return encodings
-
     # Finished
-    # encoding_method check
     def convert_token_lists_to_token_str_lists(self, token_lists):
         """
         将一个文件的encoding token_lists（二层列表）转换为str lists
@@ -563,10 +264,10 @@ class MidiEncoder(object):
         """
         encoding_method = self.encoding_method
         if encoding_method == 'REMI':
+            from . import enc_remi_utils
             return enc_remi_utils.convert_remi_token_lists_to_token_str_lists(token_lists)
-        elif encoding_method == 'TS1':
-            return enc_ts1_utils.convert_ts1_token_lists_to_token_str_lists(token_lists)
         elif encoding_method == 'REMIGEN':
+            from . import enc_remigen_utils
             return enc_remigen_utils.convert_remigen_token_lists_to_token_str_lists(token_lists)
         elif encoding_method == 'STACKED':
             from . import enc_stacked_utils

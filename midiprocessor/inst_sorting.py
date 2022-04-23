@@ -1,3 +1,24 @@
+INST_TYPE_MAPPING = {
+    (0, 8): 2,  # Piano
+    (8, 16): 13,  # Chromatic Percussion
+    (16, 24): 7,  # Organ
+    (24, 32): 3,  # Guitar
+    (32, 40): 1,  # Bass
+    (40, 48): 5,  # String
+    (48, 56): 6,  # Ensemble
+    (56, 64): 9,  # Brass
+    (64, 72): 8,  # Reed
+    (72, 80): 10,  # Pipe
+    (80, 88): 11,  # Synth Lead
+    (88, 96): 12,  # Synth Pad
+    (96, 104): 15,  # Synth Effect
+    (104, 112): 4,  # Ethnic
+    (112, 120): 14,  # Percussive
+    (120, 128): 16,  # Sound Effects
+    (128, 129): 0,  # Percussion
+}
+
+
 def do_sort_insts_based_on_id(insts):
     return sorted(insts)
 

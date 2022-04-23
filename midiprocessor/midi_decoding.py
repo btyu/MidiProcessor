@@ -3,9 +3,6 @@ import os
 from . import const
 from .vocab_manager import VocabManager
 from . import data_utils
-from . import enc_remi_utils
-from . import enc_remigen_utils
-from . import enc_ts1_utils
 
 ENCODINGS = ('REMIGEN', 'CP2')
 
@@ -55,9 +52,11 @@ class MidiDecoder:
         :return:
         """
         if self.encoding_method == 'REMI':
+            from . import enc_remi_utils
             return enc_remi_utils.convert_remi_token_str_list_to_token_list(token_str_list)
         elif self.encoding_method == 'REMIGEN':
-            return enc_remigen_utils.convert_remigen_token_str_list_to_token_list(token_str_list)
+            from . import enc_remigen_utils
+            return enc_remigen_utils.convert_token_str_list_to_token_list(token_str_list)
         elif self.encoding_method == 'CP2':
             from . import enc_cp2_utils
             return enc_cp2_utils.convert_token_str_list_to_token_list(token_str_list)
@@ -68,14 +67,12 @@ class MidiDecoder:
     def decode_file(
         self,
         file_path,
-        combine_pieces=False,
         ticks_per_beat=const.DEFAULT_TICKS_PER_BEAT,
         ts=const.DEFAULT_TS,
         tempo=const.DEFAULT_TEMPO,
         inst_id=const.DEFAULT_INST_ID,
         velocity=const.DEFAULT_VELOCITY,
-        save_path=None,
-        scheme_name=None
+        save_path=None
     ):
         """
         Decode MIDI from token str file for one song.
@@ -95,21 +92,17 @@ class MidiDecoder:
         token_str_lists = data_utils.load_lists(file_path, keep_full_dim=False)
         midi_results = self.decode_from_token_str_lists(
             token_str_lists,
-            combine_pieces=combine_pieces,
             ticks_per_beat=ticks_per_beat,
             ts=ts,
             tempo=tempo,
             inst_id=inst_id,
             velocity=velocity,
-            scheme_name=scheme_name
         )
 
         if save_path is not None:
             data_utils.ensure_file_dir_to_save(save_path)
-
-            if combine_pieces:  # Todo
-                pass
-                # midi_results.dump(save_path)
+            if len(midi_results) == 1:
+                midi_results[0].dump(save_path)
             else:
                 basename = os.path.basename(save_path)
                 basename_split = basename.split('.')
@@ -126,13 +119,11 @@ class MidiDecoder:
     def decode_from_token_str_lists(
         self,
         token_str_lists,
-        combine_pieces=False,
         ticks_per_beat=const.DEFAULT_TICKS_PER_BEAT,
         ts=const.DEFAULT_TS,
         tempo=const.DEFAULT_TEMPO,
         inst_id=const.DEFAULT_INST_ID,
         velocity=const.DEFAULT_VELOCITY,
-        scheme_name=None
     ):
         """
         Decode MIDI from token str lists for one file.
@@ -155,21 +146,18 @@ class MidiDecoder:
         for idx, token_list in enumerate(token_str_lists):
             assert len(token_list) > 0, "Piece %d in the token sequences is empty." % idx
 
-        if combine_pieces:  # Todo
-            raise ValueError('Combing pieces if not supported yet.')
-
-        else:
-            midi_objs = []
-            for idx, token_str_list in enumerate(token_str_lists):
-                midi_obj = self.decode_from_token_str_list(token_str_list,
-                                                           ticks_per_beat=ticks_per_beat,
-                                                           ts=ts,
-                                                           tempo=tempo,
-                                                           inst_id=inst_id,
-                                                           velocity=velocity,
-                                                           scheme_name=scheme_name)
-                midi_objs.append(midi_obj)
-            return midi_objs
+        midi_objs = []
+        for idx, token_str_list in enumerate(token_str_lists):
+            midi_obj = self.decode_from_token_str_list(
+                token_str_list,
+                ticks_per_beat=ticks_per_beat,
+                ts=ts,
+                tempo=tempo,
+                inst_id=inst_id,
+                velocity=velocity
+            )
+            midi_objs.append(midi_obj)
+        return midi_objs
 
     # Finished
     def decode_from_token_str_list(
@@ -225,10 +213,11 @@ class MidiDecoder:
         :param scheme_name:
         :return:
         """
-        # Todo: check and fix token_list for every encoding method.
 
         if self.encoding_method == 'REMI':
+            from . import enc_remi_utils
             token_list = enc_remi_utils.fix_remi_token_list(token_list)
+            raise NotImplementedError
             return enc_remi_utils.generate_midi_obj_from_remi_token_list(
                 token_list, self.vm,
                 ticks_per_beat=ticks_per_beat,
@@ -238,7 +227,8 @@ class MidiDecoder:
                 velocity=velocity,
             )
         elif self.encoding_method == 'REMIGEN':
-            token_list = enc_remigen_utils.fix_remigen_token_list(token_list)
+            from . import enc_remigen_utils
+            token_list = enc_remigen_utils.fix_token_list(token_list)
             return enc_remigen_utils.generate_midi_obj_from_remigen_token_list(
                 token_list, self.vm,
                 ticks_per_beat=ticks_per_beat,
@@ -248,6 +238,7 @@ class MidiDecoder:
                 velocity=velocity,
             )
         elif self.encoding_method == 'CP2':
+            raise NotImplementedError("Not finished")
             from . import enc_cp2_utils
             return enc_cp2_utils.generate_midi_obj_from_remigen_token_list(
                 token_list,

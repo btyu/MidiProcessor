@@ -1,6 +1,6 @@
 # Author: Botao Yu
 
-pos_resolution = 16
+pos_resolution = 12
 max_ts_denominator_power = 6
 max_notes_per_bar = 2
 tempo_quant = 12
