@@ -20,10 +20,16 @@ def ensure_file_dir_to_save(file_path):
     os.makedirs(dir_name, exist_ok=True)
 
 
+def json_save(obj, file_path):
+    ensure_file_dir_to_save(file_path)
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(obj, f, ensure_ascii=False)
+
+
 def load_list_iter(file_path, ignore_blank_lines=True):
     with open(file_path, 'r', encoding='utf-8') as f:
-        for l in f:
-            ls = l.strip()
+        for line in f:
+            ls = line.strip()
             blank = ls == ''
             if blank and ignore_blank_lines:
                 continue
@@ -50,8 +56,8 @@ def load_lists(file_path, keep_full_dim=False):
     cur_file_encodings = []
     in_a_file = False
     with open(file_path, 'r', encoding='utf-8') as f:
-        for l in f:
-            ls = l.strip()
+        for line in f:
+            ls = line.strip()
             blank = ls == ''
 
             if blank:  # 遇到空行

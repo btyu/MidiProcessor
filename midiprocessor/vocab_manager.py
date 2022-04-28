@@ -139,8 +139,8 @@ class VocabManager:
 
     def convert_pitch_to_id(self, x, is_drum=False):
         if is_drum:
-            return x + 128
-        return x
+            return int(x + 128)
+        return int(x)
 
     def convert_id_to_pitch(self, x):
         if x >= 128:
@@ -148,13 +148,13 @@ class VocabManager:
         return x
 
     def convert_vel_to_id(self, x):
-        return x // self.velocity_quant
+        return int(x // self.velocity_quant)
 
     def convert_id_to_vel(self, x):
         return (x * self.velocity_quant) + (self.velocity_quant // 2)
 
     def convert_dur_to_id(self, x):
-        return self.dur_enc[x] if x < len(self.dur_enc) else self.dur_enc[-1]
+        return int(self.dur_enc[x] if x < len(self.dur_enc) else self.dur_enc[-1])
 
     def convert_id_to_dur(self, x, min=1):
         r = self.dur_dec[x] if x < len(self.dur_dec) else self.dur_dec[-1]

@@ -9,25 +9,27 @@ from tqdm import tqdm
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 
-from midiprocessor import MidiEncoder, data_utils, midi_utils, ENCODINGS
+from midiprocessor import MidiEncoder, data_utils, midi_utils
+from midiprocessor.midi_encoding import ENCODINGS as ENC_ENCODINGS
 
 
 def add_args_for_batch_operation(parser):
     parser.add_argument('midi_dir')
     parser.add_argument('--file-list', type=str, default=None)
-    parser.add_argument('--midi-suffices', type=lambda x: x.split(), default=('.mid', '.midi'))
+    parser.add_argument('--midi-suffices', type=lambda x: x.split(','), default=('.mid', '.midi'))
     parser.add_argument('--output-dir', type=str, default='tokenization')
     parser.add_argument('--output-suffix', type=str, default='.txt')
+    parser.add_argument('--output-pos-info-id', action='store_true')
     parser.add_argument('--no-skip-error', action='store_true')
     parser.add_argument('--dump-dict', action='store_true')
     parser.add_argument('--fairseq-dict', action='store_true')
     parser.add_argument('--num-workers', type=int, default=None)
     parser.add_argument('--zip', action='store_true')
-    parser.add_argument('--dump_log', action='store_true')
+    # parser.add_argument('--dump_log', action='store_true')
 
 
 def add_args_for_encoding(parser):
-    parser.add_argument('--encoding-method', choices=ENCODINGS)
+    parser.add_argument('--encoding-method', choices=ENC_ENCODINGS, required=True)
     parser.add_argument('--normalize-pitch-value', action='store_true')
     parser.add_argument('--remove-empty-bars', action='store_true')
 
@@ -59,8 +61,6 @@ def main():
 
     encoder = MidiEncoder(
         encoding_method=args.encoding_method,
-        normalize_pitch_value=args.normalize_pitch_value,
-        remove_empty_bars=args.remove_empty_bars,
     )
     skip_error = not args.no_skip_error
 
@@ -132,7 +132,11 @@ def process_file(encoder, file_path, args, track_dict, skip_error=True, save=Fal
     try:
         encodings = encoder.encode_file(
             file_path,
+            normalize_pitch_value=args.normalize_pitch_value,
             tracks=None if track_dict is None else track_dict[basename],
+            save_pos_info_id_path=(None if not getattr(args, 'output_pos_info_id', False)
+                                   else os.path.join(args.output_dir, 'pos_info_id', basename + '.json')),
+            remove_empty_bars=getattr(args, 'remove_empty_bars', False),
         )
         encodings = encoder.convert_token_lists_to_token_str_lists(encodings)
     except:
@@ -162,6 +166,7 @@ def process_zip(
     save=False,
     zip_file_obj=None
 ):
+    raise NotImplementedError("Need to combine the file operations with the standard pipeline.")
     basename = os.path.basename(file_path)
     no_error = True
 

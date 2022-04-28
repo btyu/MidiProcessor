@@ -23,16 +23,12 @@ def check_encoding_method(encoding_method):
 
 
 class MidiEncoder(object):
-    def __init__(self,
-                 encoding_method,
-                 normalize_pitch_value=False,
-                 ):
+    def __init__(self, encoding_method):
         # ===== Check =====
         check_encoding_method(encoding_method)
 
         # ===== Authorized =====
         self.encoding_method = encoding_method
-        self.normalize_pitch_value = normalize_pitch_value
         self.vm = VocabManager()
 
         with open(os.path.join(os.path.dirname(__file__), const.KEY_PROFILE), 'rb') as f:
@@ -81,8 +77,8 @@ class MidiEncoder(object):
                 continue
             if pos == 0:
                 zero_pos_ts_change = True
-            ts_numerator = ts_change.numerator
-            ts_denominator = ts_change.denominator
+            ts_numerator = int(ts_change.numerator)
+            ts_denominator = int(ts_change.denominator)
             # if self.ignore_ts:
             #     assert (ts_numerator, ts_denominator) == const.DEFAULT_TS
             ts_numerator, ts_denominator = self.vm.reduce_time_signature(ts_numerator, ts_denominator)
@@ -109,13 +105,13 @@ class MidiEncoder(object):
             # if self.ignore_insts:
             #     inst_id = 0
             # else:
-            inst_id = 128 if inst.is_drum else inst.program
+            inst_id = 128 if inst.is_drum else int(inst.program)
             notes = inst.notes
             for note in notes:
-                pitch = note.pitch
-                velocity = note.velocity
-                start_time = note.start
-                end_time = note.end
+                pitch = int(note.pitch)
+                velocity = int(note.velocity)
+                start_time = int(note.start)
+                end_time = int(note.end)
                 assert end_time > start_time
                 pos_start = self.time_to_pos(start_time, midi_obj.ticks_per_beat)
                 pos_end = self.time_to_pos(end_time, midi_obj.ticks_per_beat)
@@ -183,9 +179,11 @@ class MidiEncoder(object):
         file_path,
         midi_checker='default',
         midi_obj=None,
+        normalize_pitch_value=False,
         trunc_pos=None,
         tracks=None,
         save_path=None,
+        save_pos_info_id_path=None,
         **kwargs
     ):
         encoding_method = self.encoding_method
@@ -195,18 +193,20 @@ class MidiEncoder(object):
 
         pos_info = self.collect_pos_info(midi_obj, trunc_pos=trunc_pos, tracks=tracks)
 
-        if self.normalize_pitch_value:
+        if normalize_pitch_value:
             pos_info = self.normalize_pitch(pos_info)
 
         pos_info_id = self.convert_pos_info_to_pos_info_id(pos_info)
+        if save_pos_info_id_path is not None:
+            data_utils.json_save(pos_info_id, save_pos_info_id_path)
 
         token_lists = None
         if encoding_method == 'REMI':  # Todo: REMI encoding参考原版重写
-            from . import enc_remi_utils
-            token_lists = enc_remi_utils.convert_pos_info_to_remi_token_lists(
-                pos_info_id,
-                **kwargs
-            )
+            # from . import enc_remi_utils
+            # token_lists = enc_remi_utils.convert_pos_info_to_remi_token_lists(
+            #     pos_info_id,
+            #     **kwargs
+            # )
             raise NotImplementedError("Need to rewrite REMI encoding")
         elif encoding_method == 'REMIGEN':
             from . import enc_remigen_utils
@@ -259,7 +259,6 @@ class MidiEncoder(object):
         """
         将一个文件的encoding token_lists（二层列表）转换为str lists
         :param token_lists:
-        :param encoding_method:
         :return:
         """
         encoding_method = self.encoding_method
