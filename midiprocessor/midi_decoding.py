@@ -238,10 +238,9 @@ class MidiDecoder:
                 velocity=velocity,
             )
         elif self.encoding_method == 'CP2':
-            raise NotImplementedError("Not finished")
             from . import enc_cp2_utils
             return enc_cp2_utils.generate_midi_obj_from_remigen_token_list(
-                token_list,
+                token_list, self.vm,
             )
         else:
             raise ValueError("decode_from_token_list method is not implemented for encoding method %s"

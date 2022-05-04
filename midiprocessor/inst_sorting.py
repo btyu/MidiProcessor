@@ -44,7 +44,7 @@ inst_sorting_dict = {
 
 def get_inst_sorting_method(i):
     if i is None:
-        return inst_sorting_dict['6tracks_cst1']  # Todo
+        # return inst_sorting_dict['6tracks_cst1']  # Todo
         return inst_sorting_dict['id']
     if isinstance(i, str):
         return inst_sorting_dict[i]

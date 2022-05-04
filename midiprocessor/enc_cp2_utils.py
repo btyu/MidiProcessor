@@ -271,7 +271,7 @@ def generate_midi_obj_from_remigen_token_list(
     cur_ts_id = None
     cur_local_pos = None
     cur_ts_pos_per_bar = beat_note_factor * pos_resolution * ts[0] // ts[1]
-    cur_global_bar_pos = 0
+    cur_global_bar_pos = None
     cur_global_pos = None
 
     cur_pitch = None
@@ -287,53 +287,75 @@ def generate_midi_obj_from_remigen_token_list(
         for i in range(128 + 1)
     ]
 
+    cur_inst_id = inst_id
     cur_inst = midi_obj.instruments[inst_id]
 
-    for item in token_list:  # Todo: 对错误的结果顺序做处理
-        try:
-            item_type, item_value = item
-        except ValueError:
-            print(item)
-            raise
-        if item_type == const.BAR_ABBR:
-            cur_bar_id += 1
-            cur_local_pos = None
-            cur_global_bar_pos += cur_ts_pos_per_bar
-            cur_global_pos = cur_global_bar_pos
-        elif item_type == const.TS_ABBR:
-            if cur_ts_id != item_value:
-                cur_ts_id = item_value
-                cur_ts = vocab_manager.convert_id_to_ts(cur_ts_id)
-                cur_ts_pos_per_bar = beat_note_factor * pos_resolution * cur_ts[0] // cur_ts[1]
-                midi_obj.time_signature_changes.append(
-                    miditoolkit.containers.TimeSignature(numerator=cur_ts[0], denominator=cur_ts[1],
-                                                         time=vocab_manager.pos_to_time(cur_global_bar_pos,
-                                                                                        ticks_per_beat,
-                                                                                        pos_resolution=pos_resolution))
-                )
-        elif item_type == const.POS_ABBR:
-            if cur_local_pos != item_value:
-                cur_local_pos = item_value
-                cur_global_pos = cur_global_bar_pos + cur_local_pos
-        elif item_type == const.TEMPO_ABBR:
-            if cur_tempo_id != item_value:
-                cur_tempo_id = item_value
-                cur_tempo = vocab_manager.convert_id_to_tempo(cur_tempo_id)
-                midi_obj.tempo_changes.append(
-                    miditoolkit.containers.TempoChange(cur_tempo,
-                                                       time=vocab_manager.pos_to_time(cur_global_pos,
-                                                                                      ticks_per_beat,
-                                                                                      pos_resolution=pos_resolution))
-                )
-        elif item_type == const.INST_ABBR:
-            cur_inst = midi_obj.instruments[item_value]
-        elif item_type == const.PITCH_ABBR:
-            cur_pitch = vocab_manager.convert_id_to_pitch(item_value)
-        elif item_type == const.DURATION_ABBR:
-            cur_duration = vocab_manager.convert_id_to_dur(item_value)
-        elif item_type == const.VELOCITY_ABBR:
-            cur_velocity = vocab_manager.convert_id_to_vel(item_value)
+    len_token_list = len(token_list)
+    assert len_token_list % 10 == 0
+    seq_len = len_token_list // 10
 
+    for idx in range(seq_len):
+        super_token = token_list[idx * 10: (idx + 1) * 10]
+        family_token = super_token[0]
+        if family_token in (('f', 0), ('f', 5)):
+            continue
+        if family_token == ('f', 1):
+            now_bar_token, now_ts_token = super_token[1: 3]
+            if now_bar_token == ('b', 0):
+                cur_bar_id += 1
+                cur_local_pos = None
+                if cur_global_bar_pos is None:
+                    cur_global_bar_pos = 0
+                else:
+                    cur_global_bar_pos += cur_ts_pos_per_bar
+                cur_global_pos = cur_global_bar_pos
+
+                now_ts_id = now_ts_token[1]
+                if now_ts_id != cur_ts_id:
+                    cur_ts_id = now_ts_id
+                    cur_ts = vocab_manager.convert_id_to_ts(cur_ts_id)
+                    cur_ts_pos_per_bar = beat_note_factor * pos_resolution * cur_ts[0] // cur_ts[1]
+                    midi_obj.time_signature_changes.append(
+                        miditoolkit.containers.TimeSignature(
+                            numerator=cur_ts[0], denominator=cur_ts[1],
+                            time=vocab_manager.pos_to_time(cur_global_bar_pos, ticks_per_beat,
+                                                           pos_resolution=pos_resolution)
+                        )
+                    )
+        elif family_token == ('f', 2):
+            now_tempo_token, now_pos_token = super_token[3: 5]
+            now_tempo_id = now_tempo_token[1]
+            now_pos_id = now_pos_token[1]
+            if now_pos_id != cur_local_pos:
+                cur_local_pos = now_pos_id
+                cur_global_pos = cur_global_bar_pos + cur_local_pos
+
+                if cur_tempo_id != now_tempo_id:
+                    cur_tempo_id = now_tempo_id
+                    cur_tempo = vocab_manager.convert_id_to_tempo(cur_tempo_id)
+                    midi_obj.tempo_changes.append(
+                        miditoolkit.containers.TempoChange(
+                            cur_tempo,
+                            time=vocab_manager.pos_to_time(cur_global_pos, ticks_per_beat,
+                                                           pos_resolution=pos_resolution))
+                    )
+        elif family_token == ('f', 3):
+            now_inst_token = super_token[5]
+            now_inst_id = now_inst_token[1]
+            cur_inst_id = now_inst_id
+            cur_inst = midi_obj.instruments[cur_inst_id]
+        elif family_token == ('f', 4):
+            cur_name_token, cur_octave_token, cur_duration_token, cur_velocity_token = super_token[6: 11]
+            cur_name_id = cur_name_token[1]
+            cur_octave_id = cur_octave_token[1]
+            cur_duration_id = cur_duration_token[1]
+            cur_velocity_id = cur_velocity_token[1]
+            cur_pitch_id = cur_name_id + cur_octave_id * 12
+            cur_pitch = vocab_manager.convert_id_to_pitch(cur_pitch_id)
+            cur_duration = vocab_manager.convert_id_to_dur(cur_duration_id, min=None)
+            if cur_duration == 0:
+                cur_duration = int(8 * ticks_per_beat / 480)
+            cur_velocity = vocab_manager.convert_id_to_vel(cur_velocity_id)
             start_pos = cur_global_pos
             end_pos = start_pos + cur_duration
             start_time = vocab_manager.pos_to_time(start_pos, ticks_per_beat, pos_resolution=pos_resolution)
@@ -343,7 +365,7 @@ def generate_midi_obj_from_remigen_token_list(
                 miditoolkit.containers.Note(start=start_time, end=end_time, pitch=cur_pitch, velocity=cur_velocity)
             )
         else:
-            raise ValueError("Unknown encoding type: %s" % item_type)
+            raise ValueError(family_token)
 
     midi_obj.max_tick = max_tick
 
