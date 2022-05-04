@@ -38,7 +38,7 @@ class MidiEncoder(object):
     def time_to_pos(self, *args, **kwargs):
         return self.vm.time_to_pos(*args, **kwargs)
 
-    def collect_pos_info(self, midi_obj, trunc_pos=None, tracks=None, remove_same_notes=False):
+    def collect_pos_info(self, midi_obj, trunc_pos=None, tracks=None, remove_same_notes=False, end_offset=0):
         if tracks is not None:
             from collections.abc import Iterable
             assert isinstance(tracks, (int, Iterable))
@@ -111,7 +111,7 @@ class MidiEncoder(object):
                 pitch = int(note.pitch)
                 velocity = int(note.velocity)
                 start_time = int(note.start)
-                end_time = int(note.end)
+                end_time = int(note.end + end_offset)
                 assert end_time > start_time
                 pos_start = self.time_to_pos(start_time, midi_obj.ticks_per_beat)
                 pos_end = self.time_to_pos(end_time, midi_obj.ticks_per_beat)
@@ -179,6 +179,7 @@ class MidiEncoder(object):
         file_path,
         midi_checker='default',
         midi_obj=None,
+        end_offset=0,
         normalize_pitch_value=False,
         trunc_pos=None,
         tracks=None,
@@ -191,7 +192,7 @@ class MidiEncoder(object):
         if midi_obj is None:
             midi_obj = midi_utils.load_midi(file_path, midi_checker=midi_checker)
 
-        pos_info = self.collect_pos_info(midi_obj, trunc_pos=trunc_pos, tracks=tracks)
+        pos_info = self.collect_pos_info(midi_obj, trunc_pos=trunc_pos, tracks=tracks, end_offset=end_offset)
 
         if normalize_pitch_value:
             pos_info = self.normalize_pitch(pos_info)

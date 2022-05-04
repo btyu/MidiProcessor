@@ -32,6 +32,7 @@ def add_args_for_encoding(parser):
     parser.add_argument('--encoding-method', choices=ENC_ENCODINGS, required=True)
     parser.add_argument('--normalize-pitch-value', action='store_true')
     parser.add_argument('--remove-empty-bars', action='store_true')
+    parser.add_argument('--end-offset', type=int, default=0)
 
 
 def main():
@@ -132,6 +133,7 @@ def process_file(encoder, file_path, args, track_dict, skip_error=True, save=Fal
     try:
         encodings = encoder.encode_file(
             file_path,
+            end_offset=getattr(args, 'end_offset', 0),
             normalize_pitch_value=args.normalize_pitch_value,
             tracks=None if track_dict is None else track_dict[basename],
             save_pos_info_id_path=(None if not getattr(args, 'output_pos_info_id', False)
