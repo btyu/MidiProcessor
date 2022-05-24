@@ -33,6 +33,7 @@ def add_args_for_encoding(parser):
     parser.add_argument('--normalize-pitch-value', action='store_true')
     parser.add_argument('--remove-empty-bars', action='store_true')
     parser.add_argument('--end-offset', type=int, default=0)
+    parser.add_argument('--ignore-ts', action='store_true')
 
 
 def main():
@@ -139,6 +140,7 @@ def process_file(encoder, file_path, args, track_dict, skip_error=True, save=Fal
             save_pos_info_id_path=(None if not getattr(args, 'output_pos_info_id', False)
                                    else os.path.join(args.output_dir, 'pos_info_id', basename + '.json')),
             remove_empty_bars=getattr(args, 'remove_empty_bars', False),
+            ignore_ts=getattr(args, 'ignore_ts', False),
         )
         encodings = encoder.convert_token_lists_to_token_str_lists(encodings)
     except:
