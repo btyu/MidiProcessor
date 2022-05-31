@@ -58,6 +58,9 @@ def convert_pos_info_to_token_lists(
 
         cur_local_pos = now_local_pos
 
+        if now_tempo is not None and cur_tempo != now_tempo:
+            cur_tempo = now_tempo
+
         if cur_bar != now_bar:
             if cur_bar is not None:
                 encoding.append((const.BAR_ABBR, 1))  # bar
@@ -69,16 +72,17 @@ def convert_pos_info_to_token_lists(
             if not ignore_ts:
                 encoding.append((const.TS_ABBR, cur_ts))  # ts
 
+            if not ignore_tempo:
+                encoding.append((const.TEMPO_ABBR, cur_tempo))  # tempo
+
         add_pos = False
         if now_insts_notes is not None:
             add_pos = True
-        if now_tempo is not None and cur_tempo != now_tempo:
-            cur_tempo = now_tempo
 
         if add_pos:
             encoding.append((const.POS_ABBR, cur_local_pos))  # local pos
-            if not ignore_tempo:
-                encoding.append((const.TEMPO_ABBR, cur_tempo))  # tempo
+            # if not ignore_tempo:
+            #     encoding.append((const.TEMPO_ABBR, cur_tempo))  # tempo
 
         if now_insts_notes is not None:
             cur_insts_notes = now_insts_notes
@@ -119,7 +123,7 @@ def do_remove_empty_bars(encoding, ignore_ts=False):
     valid_end = len_encoding
     for idx in range(len_encoding):
         tag_abbr = encoding[idx][0]
-        if tag_abbr == (const.POS_ABBR if ignore_ts else const.TS_ABBR):
+        if tag_abbr == (const.TEMPO_ABBR if ignore_ts else const.TS_ABBR):
             valid_start = idx
         elif tag_abbr in (const.INST_ABBR,
                           const.PITCH_ABBR, const.DURATION_ABBR, const.VELOCITY_ABBR):
@@ -166,7 +170,7 @@ def generate_midi_obj_from_remigen_token_list(
     cur_local_pos = None
     cur_ts_pos_per_bar = beat_note_factor * pos_resolution * ts[0] // ts[1]
     cur_global_bar_pos = 0
-    cur_global_pos = None
+    cur_global_pos = 0
 
     cur_pitch = None
     cur_duration = None
@@ -225,7 +229,7 @@ def generate_midi_obj_from_remigen_token_list(
         elif item_type == const.PITCH_ABBR:
             cur_pitch = vocab_manager.convert_id_to_pitch(item_value)
         elif item_type == const.DURATION_ABBR:
-            assert last_item_type == const.PITCH_ABBR
+            assert last_item_type == const.PITCH_ABBR, (item_type, last_item_type)
             cur_duration = vocab_manager.convert_id_to_dur(item_value)
         elif item_type == const.VELOCITY_ABBR:
             assert last_item_type == const.DURATION_ABBR
@@ -248,6 +252,13 @@ def generate_midi_obj_from_remigen_token_list(
             miditoolkit.containers.TempoChange(
                 tempo,
                 time=0
+            )
+        )
+
+    if len(midi_obj.time_signature_changes) == 0:
+        midi_obj.time_signature_changes.append(
+            miditoolkit.containers.TimeSignature(
+                ts[0], ts[1], time=0
             )
         )
 

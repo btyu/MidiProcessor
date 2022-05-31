@@ -215,6 +215,12 @@ class MidiEncoder(object):
                 pos_info_id,
                 **kwargs
             )
+        elif encoding_method == 'REMIGEN2':
+            from . import enc_remigen2_utils
+            token_lists = enc_remigen2_utils.convert_pos_info_to_token_lists(
+                pos_info_id,
+                **kwargs
+            )
         elif encoding_method == 'STACKED':
             from . import enc_stacked_utils
             token_lists = enc_stacked_utils.convert_pos_info_id_to_token_lists(
@@ -269,6 +275,9 @@ class MidiEncoder(object):
         elif encoding_method == 'REMIGEN':
             from . import enc_remigen_utils
             return enc_remigen_utils.convert_remigen_token_lists_to_token_str_lists(token_lists)
+        elif encoding_method == 'REMIGEN2':
+            from . import enc_remigen2_utils
+            return enc_remigen2_utils.convert_remigen_token_lists_to_token_str_lists(token_lists)
         elif encoding_method == 'STACKED':
             from . import enc_stacked_utils
             return enc_stacked_utils.convert_token_lists_to_token_str_lists(token_lists)

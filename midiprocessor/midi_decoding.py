@@ -4,7 +4,7 @@ from . import const
 from .vocab_manager import VocabManager
 from . import data_utils
 
-ENCODINGS = ('REMIGEN', 'CP2')
+ENCODINGS = ('REMIGEN', 'REMIGEN2', 'CP2')
 
 
 def raise_encoding_method_error(encoding_method):
@@ -57,6 +57,9 @@ class MidiDecoder:
         elif self.encoding_method == 'REMIGEN':
             from . import enc_remigen_utils
             return enc_remigen_utils.convert_token_str_list_to_token_list(token_str_list)
+        elif self.encoding_method == 'REMIGEN2':
+            from . import enc_remigen2_utils
+            return enc_remigen2_utils.convert_token_str_list_to_token_list(token_str_list)
         elif self.encoding_method == 'CP2':
             from . import enc_cp2_utils
             return enc_cp2_utils.convert_token_str_list_to_token_list(token_str_list)
@@ -230,6 +233,17 @@ class MidiDecoder:
             from . import enc_remigen_utils
             token_list = enc_remigen_utils.fix_token_list(token_list)
             return enc_remigen_utils.generate_midi_obj_from_remigen_token_list(
+                token_list, self.vm,
+                ticks_per_beat=ticks_per_beat,
+                ts=ts,
+                tempo=tempo,
+                inst_id=inst_id,
+                velocity=velocity,
+            )
+        elif self.encoding_method == 'REMIGEN2':
+            from . import enc_remigen2_utils
+            token_list = enc_remigen2_utils.fix_token_list(token_list)
+            return enc_remigen2_utils.generate_midi_obj_from_remigen_token_list(
                 token_list, self.vm,
                 ticks_per_beat=ticks_per_beat,
                 ts=ts,
