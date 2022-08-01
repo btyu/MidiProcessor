@@ -10,7 +10,7 @@ from . import data_utils
 from . import keys_normalization
 
 
-ENCODINGS = ('REMI', 'REMIGEN', 'STACKED', 'CP2')
+ENCODINGS = ('REMI', 'REMIGEN', 'REMIGEN2', 'STACKED', 'CP2')
 
 
 def raise_encoding_method_error(encoding_method):

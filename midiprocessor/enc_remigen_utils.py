@@ -58,13 +58,13 @@ def convert_pos_info_to_token_lists(
 
         cur_local_pos = now_local_pos
 
+        if now_ts is not None and cur_ts != now_ts:
+            cur_ts = now_ts
+
         if cur_bar != now_bar:
             if cur_bar is not None:
                 encoding.append((const.BAR_ABBR, 1))  # bar
             cur_bar = now_bar
-
-            if now_ts is not None and cur_ts != now_ts:
-                cur_ts = now_ts
 
             if not ignore_ts:
                 encoding.append((const.TS_ABBR, cur_ts))  # ts
