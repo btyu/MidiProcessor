@@ -156,10 +156,10 @@ class VocabManager:
     def convert_dur_to_id(self, x):
         return int(self.dur_enc[x] if x < len(self.dur_enc) else self.dur_enc[-1])
 
-    def convert_id_to_dur(self, x, min=1):
+    def convert_id_to_dur(self, x, min_pos=1):
         r = self.dur_dec[x] if x < len(self.dur_dec) else self.dur_dec[-1]
-        if min is not None:
-            r = max(r, min)
+        if min_pos is not None:
+            r = max(r, min_pos)
         return r
 
     def time_to_pos(self, t, ticks_per_beat):

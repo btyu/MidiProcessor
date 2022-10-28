@@ -78,8 +78,10 @@ def get_pitch_shift(pos_info, key_profile, normalize=True, use_duration=True, us
     minor_count = histogram[minor_index % 12]
     if major_count < minor_count:
         key_number = minor_index  # 小调
+        is_major = False
     else:
         key_number = major_index  # 大调
+        is_major = True
     real_key = key_number
     # transpose to C major or A minor
     if real_key <= 11:
@@ -99,4 +101,4 @@ def get_pitch_shift(pos_info, key_profile, normalize=True, use_duration=True, us
         except AssertionError:
             pitch_shift = 0
 
-    return pitch_shift, min_pitch, max_pitch
+    return pitch_shift, is_major, min_pitch, max_pitch

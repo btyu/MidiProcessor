@@ -19,21 +19,23 @@ INST_TYPE_MAPPING = {
 }
 
 
+sort_6tracks_customized_order = {
+    0: 5,  # Piano
+    25: 4,  # Guitar
+    32: 3,  # Bass
+    43: 3,  # Double Bass
+    48: 6,  # String Ensemble 1
+    80: 1,  # Synth Lead 1
+    128: 2,  # Percussion
+}
+
+
 def do_sort_insts_based_on_id(insts):
     return sorted(insts)
 
 
 def do_sort_insts_based_6tracks_customization1(insts):
-    keys = {
-        0: 5,  # Piano
-        25: 4,  # Guitar
-        32: 3,  # Bass
-        43: 3,  # Double Bass
-        48: 6,  # String Ensemble 1
-        80: 1,  # Synth Lead 1
-        128: 2,  # Percussion
-    }
-    return sorted(insts, key=lambda x: keys[x])
+    return sorted(insts, key=lambda x: sort_6tracks_customized_order[x])
 
 
 inst_sorting_dict = {

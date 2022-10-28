@@ -130,12 +130,3 @@ dmypy.json
 
 .idea/
 .vscode/
-
-files/
-
-*.mid
-*.midi
-
-./*.txt
-
-playground/

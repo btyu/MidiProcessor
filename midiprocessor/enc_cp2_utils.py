@@ -352,7 +352,7 @@ def generate_midi_obj_from_remigen_token_list(
             cur_velocity_id = cur_velocity_token[1]
             cur_pitch_id = cur_name_id + cur_octave_id * 12
             cur_pitch = vocab_manager.convert_id_to_pitch(cur_pitch_id)
-            cur_duration = vocab_manager.convert_id_to_dur(cur_duration_id, min=None)
+            cur_duration = vocab_manager.convert_id_to_dur(cur_duration_id, min_pos=None)
             if cur_duration == 0:
                 cur_duration = int(8 * ticks_per_beat / 480)
             cur_velocity = vocab_manager.convert_id_to_vel(cur_velocity_id)

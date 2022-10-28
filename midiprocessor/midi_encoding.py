@@ -148,6 +148,42 @@ class MidiEncoder(object):
 
         return pos_info
 
+    def remove_empty_bars_for_pos_info(self, pos_info):
+        cur_ts = None
+        cur_tempo = None
+        first_valid_bar_idx = None
+        for cur_pos in range(len(pos_info)):
+            pos_item = pos_info[cur_pos]
+            if pos_item[-1] is not None:
+                first_valid_bar_idx = pos_item[0]
+                break
+        offset = first_valid_bar_idx
+        first_valid_pos = None
+        for cur_pos in range(len(pos_info)):
+            pos_item = pos_info[cur_pos]
+            if pos_item[1] is not None:
+                cur_ts = pos_item[1]
+            if pos_item[3] is not None:
+                cur_tempo = pos_item[3]
+            if pos_item[0] == first_valid_bar_idx:
+                first_valid_pos = cur_pos
+                break
+
+        last_valid_pos = None
+        for cur_pos in range(len(pos_info) - 1, -1, -1):
+            pos_item = pos_info[cur_pos]
+            if pos_item[-1] is not None:
+                last_valid_pos = cur_pos
+                break
+        pos_info = pos_info[first_valid_pos: last_valid_pos + 1]
+        pos_info[0][1] = cur_ts if cur_ts is not None else (4, 4)
+        pos_info[0][3] = cur_tempo if cur_tempo is not None else 120.0
+
+        for pos_item in pos_info:
+            pos_item[0] -= offset
+
+        return pos_info
+
     def convert_pos_info_to_pos_info_id(self, pos_info):
         pos_info_id = deepcopy(pos_info)
         # (bar, ts, local_pos, tempo, insts_notes)
@@ -161,10 +197,10 @@ class MidiEncoder(object):
                 tempo_id = self.vm.convert_tempo_to_id(tempo)
                 item[3] = tempo_id
             if insts_notes is not None:
-                # (pitch, duration, velocity, pos_end)
                 for inst_id in insts_notes:
                     inst_notes = insts_notes[inst_id]
                     for inst_note in inst_notes:
+                        # (pitch, duration, velocity)
                         pitch, duration, velocity = inst_note
                         pitch_id = self.vm.convert_pitch_to_id(pitch, is_drum=inst_id == 128)
                         duration_id = self.vm.convert_dur_to_id(duration)
@@ -173,6 +209,32 @@ class MidiEncoder(object):
                         inst_note[1] = duration_id
                         inst_note[2] = velocity_id
         return pos_info_id
+
+    def convert_pos_info_id_to_pos_info(self, pos_info_id):
+        pos_info = deepcopy(pos_info_id)
+        # (bar, ts_id, local_pos, tempo_id, insts_notes)
+
+        for idx, item in enumerate(pos_info):
+            bar, ts_id, local_pos, tempo_id, insts_notes = item
+            if ts_id is not None:
+                ts = self.vm.convert_id_to_ts(ts_id)
+                item[1] = ts
+            if tempo_id is not None:
+                tempo = self.vm.convert_id_to_tempo(tempo_id)
+                item[3] = tempo
+            if insts_notes is not None:
+                # (pitch, duration, velocity, pos_end)
+                for inst_id in insts_notes:
+                    inst_notes = insts_notes[inst_id]
+                    for inst_note in inst_notes:
+                        pitch, duration, velocity = inst_note
+                        pitch = self.vm.convert_id_to_pitch(pitch)
+                        duration = self.vm.convert_id_to_dur(duration)
+                        velocity = self.vm.convert_id_to_vel(velocity)
+                        inst_note[0] = pitch
+                        inst_note[1] = duration
+                        inst_note[2] = velocity
+        return pos_info
 
     def encode_file(
         self,
@@ -195,7 +257,7 @@ class MidiEncoder(object):
         pos_info = self.collect_pos_info(midi_obj, trunc_pos=trunc_pos, tracks=tracks, end_offset=end_offset)
 
         if normalize_pitch_value:
-            pos_info = self.normalize_pitch(pos_info)
+            pos_info, is_major = self.normalize_pitch(pos_info)
 
         pos_info_id = self.convert_pos_info_to_pos_info_id(pos_info)
         if save_pos_info_id_path is not None:
@@ -246,9 +308,11 @@ class MidiEncoder(object):
 
     def normalize_pitch(self, pos_info):
         assert self.key_profile is not None, "Please load key_profile first, using load_key_profile method."
-        pitch_shift, _, _ = keys_normalization.get_pitch_shift(pos_info, self.key_profile,
-                                                               normalize=True, use_duration=True, use_velocity=True,
-                                                               ensure_valid_range=True)
+        pitch_shift, is_major, _, _ = keys_normalization.get_pitch_shift(
+            pos_info, self.key_profile,
+            normalize=True, use_duration=True, use_velocity=True,
+            ensure_valid_range=True
+        )
         for bar, ts, pos, tempo, insts_notes in pos_info:
             if insts_notes is None:
                 continue
@@ -259,7 +323,7 @@ class MidiEncoder(object):
                 for note_idx, (pitch, duration, velocity) in enumerate(inst_notes):
                     # inst_notes[note_idx] = (pitch + pitch_shift, duration, velocity)
                     inst_notes[note_idx][0] = pitch + pitch_shift
-        return pos_info
+        return pos_info, is_major
 
     # Finished
     def convert_token_lists_to_token_str_lists(self, token_lists):
