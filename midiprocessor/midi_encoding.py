@@ -10,7 +10,7 @@ from . import data_utils
 from . import keys_normalization
 
 
-ENCODINGS = ('REMI', 'REMIGEN', 'REMIGEN2', 'STACKED', 'CP2')
+ENCODINGS = ('REMIGEN', 'REMIGEN2')
 
 
 def raise_encoding_method_error(encoding_method):
@@ -284,17 +284,19 @@ class MidiEncoder(object):
                 **kwargs
             )
         elif encoding_method == 'STACKED':
-            from . import enc_stacked_utils
-            token_lists = enc_stacked_utils.convert_pos_info_id_to_token_lists(
-                pos_info_id,
-                **kwargs
-            )
+            raise NotImplementedError
+            # from . import enc_stacked_utils
+            # token_lists = enc_stacked_utils.convert_pos_info_id_to_token_lists(
+            #     pos_info_id,
+            #     **kwargs
+            # )
         elif encoding_method == 'CP2':
-            from . import enc_cp2_utils
-            token_lists = enc_cp2_utils.convert_pos_info_id_to_token_lists(
-                pos_info_id,
-                **kwargs
-            )
+            raise NotImplementedError
+            # from . import enc_cp2_utils
+            # token_lists = enc_cp2_utils.convert_pos_info_id_to_token_lists(
+            #     pos_info_id,
+            #     **kwargs
+            # )
         else:
             raise_encoding_method_error(encoding_method)
 
@@ -334,8 +336,9 @@ class MidiEncoder(object):
         """
         encoding_method = self.encoding_method
         if encoding_method == 'REMI':
-            from . import enc_remi_utils
-            return enc_remi_utils.convert_remi_token_lists_to_token_str_lists(token_lists)
+            # from . import enc_remi_utils
+            # return enc_remi_utils.convert_remi_token_lists_to_token_str_lists(token_lists)
+            raise NotImplementedError
         elif encoding_method == 'REMIGEN':
             from . import enc_remigen_utils
             return enc_remigen_utils.convert_remigen_token_lists_to_token_str_lists(token_lists)
@@ -343,11 +346,13 @@ class MidiEncoder(object):
             from . import enc_remigen2_utils
             return enc_remigen2_utils.convert_remigen_token_lists_to_token_str_lists(token_lists)
         elif encoding_method == 'STACKED':
-            from . import enc_stacked_utils
-            return enc_stacked_utils.convert_token_lists_to_token_str_lists(token_lists)
+            # from . import enc_stacked_utils
+            # return enc_stacked_utils.convert_token_lists_to_token_str_lists(token_lists)
+            raise NotImplementedError
         elif encoding_method == 'CP2':
-            from . import enc_cp2_utils
-            return enc_cp2_utils.convert_token_lists_to_token_str_lists(token_lists)
+            # from . import enc_cp2_utils
+            # return enc_cp2_utils.convert_token_lists_to_token_str_lists(token_lists)
+            raise NotImplementedError
         else:
             raise_encoding_method_error(encoding_method)
 

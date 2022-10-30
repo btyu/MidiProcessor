@@ -8,17 +8,18 @@ from . import vocab_config
 
 
 class VocabManager:
-    def __init__(self,
-                 pos_resolution=vocab_config.pos_resolution,
-                 max_ts_denominator_power=vocab_config.max_ts_denominator_power,
-                 max_notes_per_bar=vocab_config.max_notes_per_bar,
-                 tempo_quant=vocab_config.tempo_quant,
-                 min_tempo=vocab_config.min_tempo,
-                 max_tempo=vocab_config.max_tempo,
-                 velocity_quant=vocab_config.velocity_quant,
-                 max_duration=vocab_config.max_duration,
-                 max_bar_num=vocab_config.max_bar_num,
-                 ):
+    def __init__(
+        self,
+        pos_resolution=vocab_config.pos_resolution,
+        max_ts_denominator_power=vocab_config.max_ts_denominator_power,
+        max_notes_per_bar=vocab_config.max_notes_per_bar,
+        tempo_quant=vocab_config.tempo_quant,
+        min_tempo=vocab_config.min_tempo,
+        max_tempo=vocab_config.max_tempo,
+        velocity_quant=vocab_config.velocity_quant,
+        max_duration=vocab_config.max_duration,
+        max_bar_num=vocab_config.max_bar_num,
+    ):
 
         self.pos_resolution = pos_resolution  # per beat (quarter note)
 

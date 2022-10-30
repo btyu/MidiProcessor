@@ -20,11 +20,11 @@ INST_TYPE_MAPPING = {
 
 
 sort_6tracks_customized_order = {
-    0: 5,  # Piano
-    25: 4,  # Guitar
+    0: 6,  # Piano
+    25: 5,  # Guitar
     32: 3,  # Bass
-    43: 3,  # Double Bass
-    48: 6,  # String Ensemble 1
+    43: 4,  # Double Bass
+    48: 7,  # String Ensemble 1
     80: 1,  # Synth Lead 1
     128: 2,  # Percussion
 }
@@ -43,10 +43,11 @@ inst_sorting_dict = {
     '6tracks_cst1': do_sort_insts_based_6tracks_customization1
 }
 
+INST_SORTING_METHODS = list(inst_sorting_dict.keys())
+
 
 def get_inst_sorting_method(i):
     if i is None:
-        # return inst_sorting_dict['6tracks_cst1']  # Todo: add arg to set instrument sorting method
         return inst_sorting_dict['id']
     if isinstance(i, str):
         return inst_sorting_dict[i]

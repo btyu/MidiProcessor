@@ -6,6 +6,8 @@ note_sorting_dict = {
     'high_to_low': do_sort_notes_from_high_to_low,
 }
 
+NOTE_SORTING_METHODS = list(note_sorting_dict.keys())
+
 
 def get_note_sorting_method(i):
     if i is None:

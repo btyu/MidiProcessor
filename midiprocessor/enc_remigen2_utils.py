@@ -138,8 +138,6 @@ def do_remove_empty_bars(encoding, ignore_ts=False):
 
     assert valid_start is not None
     assert valid_start < valid_end
-    # print(valid_start, valid_end)
-    # input()
 
     encoding = encoding[valid_start: valid_end]
 

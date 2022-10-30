@@ -1,3 +1,3 @@
 # Author: Botao Yu
 
-__version__ = 'v3.0.0'
+__version__ = '0.1.0'
