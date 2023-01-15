@@ -132,14 +132,6 @@ def get_file_paths(data_dir, file_list=None, suffixes=None):
             else:
                 file_list = load_list(file_list)
         for file_name in file_list:
-            if suffixes is not None and len(suffixes) > 0:
-                not_in = True
-                for suffix in suffixes:
-                    if file_name.endswith(suffix):
-                        not_in = False
-                        break
-                if not_in:
-                    continue
             file_path = os.path.join(data_dir, file_name)
             file_path_list.append(file_path)
     return file_path_list

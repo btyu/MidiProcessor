@@ -98,7 +98,7 @@ def process_file(encoder: MidiEncoder, file_path, args, track_dict, skip_error=T
         encodings = encoder.encode_file(
             file_path,
             end_offset=getattr(args, 'end_offset', 0),
-            normalize_pitch_value=args.normalize_pitch_value,
+            normalize_pitch_value=(args, 'normalize_pitch_value', False),
             tracks=None if track_dict is None else track_dict[basename],
             save_pos_info_id_path=(None if not getattr(args, 'output_pos_info_id', False)
                                    else os.path.join(args.output_dir, 'pos_info_id', basename + '.json')),
