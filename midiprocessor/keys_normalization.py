@@ -41,7 +41,7 @@ def get_pitch_shift(pos_info, key_profile, normalize=True, use_duration=True, us
     notes, min_pitch, max_pitch = get_notes_from_pos_info(pos_info)
     assert min_pitch >= 0 and max_pitch < 128
     if len(notes) == 0:
-        return 0, None, None
+        return 0, None, None, None
     histogram = None
     key_candidate = None
     key_temp = None
