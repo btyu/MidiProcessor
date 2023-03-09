@@ -308,13 +308,15 @@ class MidiEncoder(object):
 
         return token_lists
 
-    def normalize_pitch(self, pos_info):
+    def normalize_pitch(self, pos_info, inplace=False):
         assert self.key_profile is not None, "Please load key_profile first, using load_key_profile method."
         pitch_shift, is_major, _, _ = keys_normalization.get_pitch_shift(
             pos_info, self.key_profile,
             normalize=True, use_duration=True, use_velocity=True,
             ensure_valid_range=True
         )
+        if not inplace:
+            pos_info = deepcopy(pos_info)
         for bar, ts, pos, tempo, insts_notes in pos_info:
             if insts_notes is None:
                 continue
@@ -325,7 +327,7 @@ class MidiEncoder(object):
                 for note_idx, (pitch, duration, velocity) in enumerate(inst_notes):
                     # inst_notes[note_idx] = (pitch + pitch_shift, duration, velocity)
                     inst_notes[note_idx][0] = pitch + pitch_shift
-        return pos_info, is_major
+        return pos_info, is_major, pitch_shift
 
     # Finished
     def convert_token_lists_to_token_str_lists(self, token_lists):
