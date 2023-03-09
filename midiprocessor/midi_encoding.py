@@ -315,6 +315,7 @@ class MidiEncoder(object):
             normalize=True, use_duration=True, use_velocity=True,
             ensure_valid_range=True
         )
+        pitch_shift = int(pitch_shift)
         if not inplace:
             pos_info = deepcopy(pos_info)
         for bar, ts, pos, tempo, insts_notes in pos_info:
