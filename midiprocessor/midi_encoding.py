@@ -257,7 +257,7 @@ class MidiEncoder(object):
         pos_info = self.collect_pos_info(midi_obj, trunc_pos=trunc_pos, tracks=tracks, end_offset=end_offset)
 
         if normalize_pitch_value:
-            pos_info, is_major = self.normalize_pitch(pos_info)
+            pos_info, is_major, pitch_shift = self.normalize_pitch(pos_info)
 
         pos_info_id = self.convert_pos_info_to_pos_info_id(pos_info)
         if save_pos_info_id_path is not None:
