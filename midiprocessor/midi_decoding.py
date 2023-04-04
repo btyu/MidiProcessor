@@ -77,7 +77,8 @@ class MidiDecoder:
         tempo=const.DEFAULT_TEMPO,
         inst_id=const.DEFAULT_INST_ID,
         velocity=const.DEFAULT_VELOCITY,
-        save_path=None
+        save_path=None,
+        **kwargs,
     ):
         """
         Decode MIDI from token str file for one song.
@@ -102,6 +103,7 @@ class MidiDecoder:
             tempo=tempo,
             inst_id=inst_id,
             velocity=velocity,
+            **kwargs,
         )
 
         if save_path is not None:
@@ -129,6 +131,7 @@ class MidiDecoder:
         tempo=const.DEFAULT_TEMPO,
         inst_id=const.DEFAULT_INST_ID,
         velocity=const.DEFAULT_VELOCITY,
+        **kwargs,
     ):
         """
         Decode MIDI from token str lists for one file.
@@ -159,7 +162,8 @@ class MidiDecoder:
                 ts=ts,
                 tempo=tempo,
                 inst_id=inst_id,
-                velocity=velocity
+                velocity=velocity,
+                **kwargs,
             )
             midi_objs.append(midi_obj)
         return midi_objs
@@ -173,6 +177,7 @@ class MidiDecoder:
         tempo=const.DEFAULT_TEMPO,
         inst_id=const.DEFAULT_INST_ID,
         velocity=const.DEFAULT_VELOCITY,
+        **kwargs,
     ):
         """
         Decode MIDI obj from token_str_list.
@@ -193,7 +198,8 @@ class MidiDecoder:
             ts=ts,
             tempo=tempo,
             inst_id=inst_id,
-            velocity=velocity
+            velocity=velocity,
+            **kwargs,
         )
 
         return midi_obj
@@ -205,7 +211,8 @@ class MidiDecoder:
         ts=const.DEFAULT_TS,
         tempo=const.DEFAULT_TEMPO,
         inst_id=const.DEFAULT_INST_ID,
-        velocity=const.DEFAULT_VELOCITY
+        velocity=const.DEFAULT_VELOCITY,
+        **kwargs,
     ):
         """
 
@@ -241,6 +248,7 @@ class MidiDecoder:
                 tempo=tempo,
                 inst_id=inst_id,
                 velocity=velocity,
+                **kwargs,
             )
         elif self.encoding_method == 'REMIGEN2':
             from . import enc_remigen2_utils
@@ -252,6 +260,7 @@ class MidiDecoder:
                 tempo=tempo,
                 inst_id=inst_id,
                 velocity=velocity,
+                **kwargs,
             )
         elif self.encoding_method == 'CP2':
             raise NotImplementedError
