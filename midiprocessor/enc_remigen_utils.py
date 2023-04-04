@@ -33,6 +33,7 @@ def convert_pos_info_to_token_lists(
     ignore_inst=False,
     ignore_ts=False,
     ignore_tempo=False,
+    ignore_velocity=False,
     sort_insts=None,
     sort_notes=None,
 ):
@@ -92,7 +93,8 @@ def convert_pos_info_to_token_lists(
                 for pitch, duration, velocity in inst_notes:
                     encoding.append((const.PITCH_ABBR, pitch))  # pitch
                     encoding.append((const.DURATION_ABBR, duration))  # duration
-                    encoding.append((const.VELOCITY_ABBR, velocity))  # velocity
+                    if not ignore_velocity:
+                        encoding.append((const.VELOCITY_ABBR, velocity))  # velocity
             else:
                 insts_ids = sort_insts(insts_ids)
                 for inst_id in insts_ids:
@@ -101,7 +103,8 @@ def convert_pos_info_to_token_lists(
                     for pitch, duration, velocity in inst_notes:
                         encoding.append((const.PITCH_ABBR, pitch))  # pitch
                         encoding.append((const.DURATION_ABBR, duration))  # duration
-                        encoding.append((const.VELOCITY_ABBR, velocity))  # velocity
+                        if not ignore_velocity:
+                            encoding.append((const.VELOCITY_ABBR, velocity))  # velocity
 
     encoding.append((const.BAR_ABBR, 1))  # bar
 
@@ -150,6 +153,7 @@ def fix_token_list(token_list):
 def generate_midi_obj_from_remigen_token_list(
     token_list,
     vocab_manager,
+    ignore_velocity=False,
     ticks_per_beat=const.DEFAULT_TICKS_PER_BEAT,
     ts=const.DEFAULT_TS,
     tempo=const.DEFAULT_TEMPO,
@@ -227,7 +231,22 @@ def generate_midi_obj_from_remigen_token_list(
         elif item_type == const.DURATION_ABBR:
             assert last_item_type == const.PITCH_ABBR
             cur_duration = vocab_manager.convert_id_to_dur(item_value)
+
+            if ignore_velocity:
+                start_pos = cur_global_pos
+                end_pos = start_pos + cur_duration
+                start_time = vocab_manager.pos_to_time(start_pos, ticks_per_beat, pos_resolution=pos_resolution)
+                end_time = vocab_manager.pos_to_time(end_pos, ticks_per_beat, pos_resolution=pos_resolution)
+                max_tick = max(end_time, max_tick)
+                cur_inst.notes.append(
+                    miditoolkit.containers.Note(start=start_time, end=end_time, pitch=cur_pitch, velocity=cur_velocity)
+                )
         elif item_type == const.VELOCITY_ABBR:
+            if ignore_velocity:
+                raise ValueError(
+                    "Invalid token for velocity (%s) while setting ignore_velocity=True" % ('%s-%s' % item)
+                )
+
             assert last_item_type == const.DURATION_ABBR
             cur_velocity = vocab_manager.convert_id_to_vel(item_value)
 
