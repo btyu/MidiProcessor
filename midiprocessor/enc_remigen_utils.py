@@ -170,7 +170,7 @@ def generate_midi_obj_from_remigen_token_list(
     cur_local_pos = None
     cur_ts_pos_per_bar = beat_note_factor * pos_resolution * ts[0] // ts[1]
     cur_global_bar_pos = 0
-    cur_global_pos = None
+    cur_global_pos = 0
 
     cur_pitch = None
     cur_duration = None
